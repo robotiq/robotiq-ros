@@ -148,13 +148,15 @@ TEST(HardwareParameters, TimeoutsAreSecondsInTheUrdfAndMillisecondsInTheConfig)
 
 TEST(HardwareParameters, ReadsTheScalingParameters)
 {
-   const GripperParameters parameters = parseParameters(info_with({{"gripper_max_speed", "0.2"},
+   const GripperParameters parameters = parseParameters(info_with({{"gripper_min_speed", "0.03"},
+                                                                   {"gripper_max_speed", "0.2"},
                                                                    {"gripper_max_force", "185"},
                                                                    {"gripper_speed_multiplier", "0.75"},
                                                                    {"gripper_force_multiplier", "0.5"}}),
                                                         logger());
 
    EXPECT_DOUBLE_EQ(0.7929, parameters.closed_position);
+   EXPECT_DOUBLE_EQ(0.03, parameters.min_speed);
    EXPECT_DOUBLE_EQ(0.2, parameters.max_speed);
    EXPECT_DOUBLE_EQ(185.0, parameters.max_force);
    EXPECT_DOUBLE_EQ(0.75, parameters.speed_multiplier);
@@ -184,6 +186,31 @@ TEST(HardwareParameters, AnUnusableScaleFallsBackToItsDefault)
       EXPECT_DOUBLE_EQ(kMaxForceDefault, parameters.max_force) << "gripper_max_force '" << unusable << "'";
       EXPECT_DOUBLE_EQ(kMaxSpeedDefault, parameters.max_speed) << "gripper_max_speed '" << unusable << "'";
    }
+}
+
+TEST(HardwareParameters, AnUnusableSpeedFloorFallsBackToItsDefault)
+{
+   // Unlike the scales above, zero is a legal floor; only a negative or
+   // non-finite one is not.
+   for(const char* unusable : {"-0.01", "nan", "-inf"})
+   {
+      const GripperParameters parameters = parseParameters(info_with({{"gripper_min_speed", unusable}}), logger());
+
+      EXPECT_DOUBLE_EQ(kMinSpeedDefault, parameters.min_speed) << "gripper_min_speed '" << unusable << "'";
+   }
+
+   EXPECT_DOUBLE_EQ(0.0, parseParameters(info_with({{"gripper_min_speed", "0"}}), logger()).min_speed);
+}
+
+TEST(HardwareParameters, ASpeedFloorAboveTheScaleFallsBackToItsDefault)
+{
+   // An inverted span maps every speed to nothing, which would leave rSP at
+   // whatever it held rather than following the controller.
+   const GripperParameters parameters =
+      parseParameters(info_with({{"gripper_min_speed", "0.2"}, {"gripper_max_speed", "0.15"}}), logger());
+
+   EXPECT_DOUBLE_EQ(kMinSpeedDefault, parameters.min_speed);
+   EXPECT_DOUBLE_EQ(0.15, parameters.max_speed);
 }
 
 TEST(HardwareParameters, AMissingClosedPositionIsFatal)

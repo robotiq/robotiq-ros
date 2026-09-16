@@ -19,6 +19,7 @@
         baudrate:=115200
         gripper_speed_multiplier:=1.0
         gripper_force_multiplier:=0.5
+        gripper_min_speed:=0.010
         gripper_max_speed:=0.075
         gripper_max_force:=185.0
         gripper_closed_position:=0.025
@@ -52,6 +53,7 @@
                 baudrate="${baudrate}"
                 gripper_speed_multiplier="${gripper_speed_multiplier}"
                 gripper_force_multiplier="${gripper_force_multiplier}"
+                gripper_min_speed="${gripper_min_speed}"
                 gripper_max_speed="${gripper_max_speed}"
                 gripper_max_force="${gripper_max_force}"
                 gripper_closed_position="${gripper_closed_position}"/>

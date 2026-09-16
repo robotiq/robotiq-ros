@@ -581,6 +581,7 @@ public:
    uint8_t commandedPositionRegister() const { return gripper_->getCommand().positionRequest; }
    uint8_t commandedSpeedRegister() const { return gripper_->getCommand().speed; }
    uint8_t commandedForceRegister() const { return gripper_->getCommand().force; }
+   double minSpeed() const { return parameters_.min_speed; }
    double maxSpeed() const { return parameters_.max_speed; }
    double maxForce() const { return parameters_.max_force; }
    bool recoveryInFlight() const { return recovery_.valid(); }
@@ -715,12 +716,13 @@ TEST(TestRobotiqGripperHardwareInterface, AnUnmappableSpeedKeepsThePreviousOne)
 }
 
 /**
- * Speed and force are written in SI and scale linearly over
- * gripper_max_speed / gripper_max_force, rounded to the nearest register.
- * Half scale lands on 128 rather than 127: the conversion the SDK owns
- * rounds where the driver's own used to truncate.
+ * Speed is written in SI and scales over the gripper's real speed range: rSP 0
+ * is gripper_min_speed, not a standstill, so a slower request floors there
+ * rather than asking for a speed the gripper cannot do. Force spans from zero,
+ * having no such floor, and half of it lands on 128 rather than 127: the
+ * conversion the SDK owns rounds where the driver's own used to truncate.
  */
-TEST(TestRobotiqGripperHardwareInterface, SpeedAndForceScaleOverTheirFullScale)
+TEST(TestRobotiqGripperHardwareInterface, SpeedAndForceScaleOverTheirOwnRange)
 {
    RecoveringGripper gripper;
    const rclcpp_lifecycle::State state;
@@ -730,11 +732,19 @@ TEST(TestRobotiqGripperHardwareInterface, SpeedAndForceScaleOverTheirFullScale)
    ASSERT_EQ(CallbackReturn::SUCCESS, gripper.on_activate(state));
 
    gripper.commandPosition(0.0);
-   gripper.commandSpeed(gripper.maxSpeed() / 2.0);
+   // Three fifths of the speed span, which is not a rounding tie the way half
+   // of the force scale is.
+   gripper.commandSpeed(gripper.minSpeed() + 0.6 * (gripper.maxSpeed() - gripper.minSpeed()));
    gripper.commandForce(gripper.maxForce() / 2.0);
    ASSERT_EQ(hardware_interface::return_type::OK, gripper.write(rclcpp::Time{0}, rclcpp::Duration::from_seconds(0.01)));
-   EXPECT_EQ(128, gripper.commandedSpeedRegister());
+   EXPECT_EQ(153, gripper.commandedSpeedRegister());
    EXPECT_EQ(128, gripper.commandedForceRegister());
+
+   gripper.commandSpeed(gripper.minSpeed() / 2.0);
+   gripper.commandForce(0.0);
+   ASSERT_EQ(hardware_interface::return_type::OK, gripper.write(rclcpp::Time{0}, rclcpp::Duration::from_seconds(0.01)));
+   EXPECT_EQ(0, gripper.commandedSpeedRegister()) << "a speed under the gripper's minimum did not floor at rSP 0";
+   EXPECT_EQ(0, gripper.commandedForceRegister());
 
    gripper.commandSpeed(2.0 * gripper.maxSpeed());
    gripper.commandForce(2.0 * gripper.maxForce());

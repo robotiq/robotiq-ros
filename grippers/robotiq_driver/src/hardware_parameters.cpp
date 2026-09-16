@@ -48,6 +48,7 @@ constexpr const char* kBaudrateParam = "baudrate";
 constexpr const char* kTimeoutParam = "timeout";
 constexpr const char* kSlaveAddressParam = "slave_address";
 constexpr const char* kConnectionFrequencyParam = "connection_frequency";
+constexpr const char* kMinSpeedParam = "gripper_min_speed";
 constexpr const char* kMaxSpeedParam = "gripper_max_speed";
 constexpr const char* kMaxForceParam = "gripper_max_force";
 constexpr const char* kSpeedMultiplierParam = "gripper_speed_multiplier";
@@ -122,6 +123,17 @@ double asDouble(const std::string& text)
    return std::stod(text);
 }
 
+//! For the low end of a span, which may sit at zero.
+double asNonNegativeDouble(const std::string& text)
+{
+   const double value = std::stod(text);
+   if(!std::isfinite(value) || value < 0.0)
+   {
+      throw std::invalid_argument("expected a finite value at or above zero");
+   }
+   return value;
+}
+
 //! For a scale the register arithmetic divides by.
 double asPositiveDouble(const std::string& text)
 {
@@ -191,7 +203,19 @@ GripperParameters parseParameters(const hardware_interface::HardwareInfo& info, 
                   kProfileParam);
    }
 
+   parameters.min_speed = parameterOr<double>(info, logger, kMinSpeedParam, parameters.min_speed, asNonNegativeDouble);
    parameters.max_speed = parameterOr<double>(info, logger, kMaxSpeedParam, parameters.max_speed, asPositiveDouble);
+   // An inverted span maps every speed to nothing, which would freeze rSP at
+   // whatever it held. Report it once here rather than every control cycle.
+   if(parameters.min_speed >= parameters.max_speed)
+   {
+      RCLCPP_ERROR(logger,
+                   "gripper_min_speed (%f) is not below gripper_max_speed (%f); falling back to %f",
+                   parameters.min_speed,
+                   parameters.max_speed,
+                   kMinSpeedDefault);
+      parameters.min_speed = kMinSpeedDefault;
+   }
    parameters.max_force = parameterOr<double>(info, logger, kMaxForceParam, parameters.max_force, asPositiveDouble);
    parameters.speed_multiplier =
       parameterOr<double>(info, logger, kSpeedMultiplierParam, parameters.speed_multiplier, asDouble);
