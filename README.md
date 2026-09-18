@@ -423,6 +423,8 @@ None of the four beyond `position` and `velocity` are `ros2_control` standard in
 
 A malformed value is reported and the default stands; only the position mapping fails the transition: `gripper_closed_position` missing, malformed, zero or non-finite, or an unknown `gripper_profile`. A speed or force command the driver cannot turn into a register leaves that register at its previous value.
 
+Changed in 1.2.0: speed commands scale from `gripper_min_speed` rather than from zero, because rSP `0` is the gripper's slowest motion and not a standstill — the bottom of the register band used to be spent asking for speeds the gripper cannot reach. A given speed therefore reaches the gripper as a lower register than it did in 1.1.0. Set `gripper_min_speed` to `0.0` in the description to get the previous mapping back exactly.
+
 > `use_dummy` selects the SDK's fake gripper: no port is opened, activation is instant, and the fingers report wherever they were last commanded. It keeps the real plugin loaded, so the gripper and activation controllers still bind. That is what distinguishes it from the `use_fake_hardware:=true` launch argument, which swaps the plugin out for `ros2_control`'s `mock_components/GenericSystem`.
 
 ### Several grippers in one description
