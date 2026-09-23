@@ -7,6 +7,8 @@ still says `stalled: true`. That abort is how the driver reports fingers stopped
 on an object, so it comes through as a stall, not as a failure.
 """
 
+from dataclasses import replace
+
 from gripper_mcp.backend import BackendMotion
 
 JOINT_STATES_TOPIC = "joint_states"
@@ -40,6 +42,20 @@ def motion_from_result(
         stalled=stalled,
         detail=f"Goal {name}: stalled={stalled}, reached_goal={reached_goal}.",
     )
+
+
+def speed_ignored_message(action_type: str) -> str:
+    return (
+        f"Speed not applied: the controller takes {action_type} goals, which "
+        "carry no speed (ROS 2 Humble's gripper controller), so the fingers "
+        "moved at the controller's own speed. "
+    )
+
+
+def with_note(motion: BackendMotion, note: str) -> BackendMotion:
+    if not note:
+        return motion
+    return replace(motion, detail=note + motion.detail)
 
 
 def refused(position_rad: float, detail: str) -> BackendMotion:

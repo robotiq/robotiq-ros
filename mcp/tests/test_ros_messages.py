@@ -9,7 +9,9 @@ from gripper_mcp.ros_messages import (
     position_of,
     refused,
     result_position_of,
+    speed_ignored_message,
     timed_out,
+    with_note,
 )
 
 ACTION = "/left/robotiq_gripper_controller/gripper_cmd"
@@ -18,6 +20,33 @@ HUMBLE = "control_msgs/action/GripperCommand"
 KNOWN = {PARALLEL: object(), HUMBLE: object()}
 
 HALFWAY_RAD = 0.4
+
+
+def test_a_speed_on_a_controller_without_one_says_it_was_not_applied():
+    message = speed_ignored_message("GripperCommand")
+
+    assert message.startswith("Speed not applied")
+    assert "GripperCommand" in message
+    assert "the controller's own speed" in message
+
+
+def test_a_note_goes_in_front_of_the_motion_detail():
+    motion = motion_from_result(
+        STATUS_SUCCEEDED, HALFWAY_RAD, stalled=False, reached_goal=True
+    )
+
+    noted = with_note(motion, "Speed not applied. ")
+
+    assert noted.detail == "Speed not applied. " + motion.detail
+    assert noted.reached_goal is True
+
+
+def test_no_note_leaves_the_motion_as_is():
+    motion = motion_from_result(
+        STATUS_SUCCEEDED, HALFWAY_RAD, stalled=False, reached_goal=True
+    )
+
+    assert with_note(motion, "") is motion
 
 
 def test_a_goal_that_succeeds_reached_its_position():

@@ -35,6 +35,14 @@ its `gripper_max_force` parameter, 235 by default, to fill the register, so the
 effort is sent as effort x 235. Temporary: robotiq/ros#70 has the driver take
 the SDK's effort directly, and this scaling goes with it.
 
+A speed, when the call names one, goes on the goal as `command.velocity` in
+m/s; the controller forwards it to the driver's `set_gripper_max_velocity`
+interface and the driver maps it onto the gripper's speed register. Humble's
+`GripperCommand` has no speed field, so there the move runs at the controller's
+own speed and its detail says the speed was not applied. A controller without a
+speed interface (the topic-based sim configs) drops it without saying so, which
+the server cannot see. A move that names no speed runs at the controller's own.
+
 `holding_effort` is never filled. `joint_states.effort` would be a joint torque
 in N m, and no shipped description exports an effort interface anyway; the
 gripper reports motor current (gCU), and turning that into a fingertip force
@@ -67,7 +75,9 @@ from gripper_mcp.ros_messages import (
     position_of,
     refused,
     result_position_of,
+    speed_ignored_message,
     timed_out,
+    with_note,
 )
 
 ACTION_NAME = "robotiq_gripper_controller/gripper_cmd"
@@ -222,13 +232,21 @@ class RosGripperBackend:
         return BackendState(position_rad=position_of(self._states.latest, joint, 0.0))
 
     def move_to(
-        self, position_rad: float, effort: float, timeout_s: float
+        self,
+        position_rad: float,
+        effort: float,
+        timeout_s: float,
+        speed_m_s: float | None = None,
     ) -> BackendMotion:
         with self._motion_lock:
-            return self._move_to(position_rad, effort, timeout_s)
+            return self._move_to(position_rad, effort, timeout_s, speed_m_s)
 
     def _move_to(
-        self, position_rad: float, effort: float, timeout_s: float
+        self,
+        position_rad: float,
+        effort: float,
+        timeout_s: float,
+        speed_m_s: float | None,
     ) -> BackendMotion:
         deadline = time.monotonic() + timeout_s
         self.joint_geometry()
@@ -241,7 +259,16 @@ class RosGripperBackend:
                 f"'{self._node.get_namespace()}'; is the controller active?",
             )
 
-        goal = self._goal(position_rad, effort)
+        note = ""
+        if speed_m_s is not None and self._action_type is not ParallelGripperCommand:
+            note = speed_ignored_message(self._action_type.__name__)
+            speed_m_s = None
+
+        goal = self._goal(position_rad, effort, speed_m_s)
+        motion = self._send(client, goal, here, deadline, timeout_s)
+        return with_note(motion, note)
+
+    def _send(self, client, goal, here: float, deadline: float, timeout_s: float):
         sent = client.send_goal_async(goal)
         handle = wait_for(sent, remaining(deadline))
         if handle is None:
@@ -331,13 +358,15 @@ class RosGripperBackend:
             return "absent"
         return f"ready ({self._action_type.__name__})"
 
-    def _goal(self, position_rad: float, effort: float):
+    def _goal(self, position_rad: float, effort: float, speed_m_s: float | None):
         goal = self._action_type.Goal()
         nominal_n = effort * DRIVER_FULL_SCALE_EFFORT_N
         if self._action_type is ParallelGripperCommand:
             goal.command.name = [self._joint.name]
             goal.command.position = [position_rad]
             goal.command.effort = [nominal_n]
+            if speed_m_s is not None:
+                goal.command.velocity = [speed_m_s]
         else:
             goal.command.position = position_rad
             goal.command.max_effort = nominal_n
