@@ -20,12 +20,13 @@ hardware and against a simulator launched with `sim_topic_based:=true`.
 | `gripper_verify_grasp` | Confirm a hold from touch plus opening |
 
 Every tool takes an explicit `gripper_name`; nothing fans out to every gripper.
-A motion's `speed_mm_s`, the speed of each finger, is clamped to the model's range, which
-`gripper_list_grippers` reports (20-150 mm/s on a 2F-85); leaving it out runs at
-full speed. The speed is applied on a real gripper under Jazzy's controller.
-Humble's controller carries no speed, so there the move runs at full speed and
-its `detail` says the speed was not applied; the Isaac twin's topic-based
-controller drops it silently.
+A motion's `speed_mm_s`, the speed of each finger, is clamped to the model's
+range, which `gripper_list_grippers` reports (20-150 mm/s on a 2F-85); leaving
+it out runs at full speed. The speed is applied on a real gripper under Jazzy's
+controller. Humble's controller carries no speed, so there the move runs at full
+speed and its `detail` says the speed was not applied; a simulator connected
+through the driver's topic-based mode (`sim_topic_based:=true`) drops it
+silently.
 Openings are in **millimetres**: `0.0` closed, the model's max opening (`85.0`
 on a 2F-85, `140.0` on a 2F-140) fully open. Every motion result carries an
 `outcome`:
