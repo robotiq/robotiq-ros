@@ -70,6 +70,7 @@ from gripper_mcp.ros_messages import (
     JOINT_STATES_TOPIC,
     advertised_type,
     cancel_note,
+    health_from,
     motion_from_result,
     no_state_message,
     position_of,
@@ -302,9 +303,9 @@ class RosGripperBackend:
     def health(self) -> BackendHealth:
         client = self._ready_client()
         state_fresh = self._joint_known() and self._await_state()
-        return BackendHealth(
-            reachable=client is not None or state_fresh,
-            controller_active=client is not None,
+        return health_from(
+            action_ready=client is not None,
+            state_fresh=state_fresh,
             detail=(
                 f"{ACTION_NAME} {self._describe(client)}, "
                 f"{JOINT_STATES_TOPIC} {'fresh' if state_fresh else 'stale'}, "

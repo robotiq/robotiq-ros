@@ -4,6 +4,7 @@ from gripper_mcp.ros_messages import (
     STATUS_SUCCEEDED,
     advertised_type,
     cancel_note,
+    health_from,
     motion_from_result,
     no_state_message,
     position_of,
@@ -200,3 +201,24 @@ def test_a_stale_joint_state_names_its_age():
 
     assert "25.4 s old (limit 2 s)" in message
     assert "has the controller stopped?" in message
+
+
+def test_a_listed_controller_with_fresh_state_is_healthy():
+    health = health_from(action_ready=True, state_fresh=True, detail="ok")
+
+    assert health.reachable is True
+    assert health.controller_active is True
+
+
+def test_a_controller_still_listed_after_its_driver_died_is_not_healthy():
+    health = health_from(action_ready=True, state_fresh=False, detail="stale")
+
+    assert health.reachable is False
+    assert health.controller_active is False
+
+
+def test_a_driver_publishing_without_its_controller_is_reachable_but_inactive():
+    health = health_from(action_ready=False, state_fresh=True, detail="no action")
+
+    assert health.reachable is True
+    assert health.controller_active is False

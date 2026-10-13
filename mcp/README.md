@@ -200,10 +200,12 @@ outcomes, so a stalled close is reported as a grasp, not a failure.
 
 ## Known limitations
 
-- **Health lags a dead driver by a few seconds.** When the driver stops,
-  `gripper_get_health` keeps reporting the controller as `ready` until ROS
-  notices it is gone. A move sent in that window fails with a timeout rather
-  than a clear "driver down".
+- **A move sent to a driver that just died waits 10 s.** `gripper_get_health`
+  reports a stopped driver within a few seconds, once its `joint_states` go
+  stale, but ROS keeps listing its controller for about 20 s more. A move sent
+  in that window waits out the goal timeout and returns `incomplete` rather
+  than a clear "driver down"; check health when a move comes back
+  `incomplete`.
 - **About one CPU core at idle on a gripper with pads.** The server reads every
   `joint_states` message (500 Hz) and every pad frame (about 2 kHz) in Python,
   which costs about one CPU core, and about 30 % of one without pads.

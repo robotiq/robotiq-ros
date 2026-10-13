@@ -9,7 +9,7 @@ on an object, so it comes through as a stall, not as a failure.
 
 from dataclasses import replace
 
-from gripper_mcp.backend import BackendMotion
+from gripper_mcp.backend import BackendHealth, BackendMotion
 
 JOINT_STATES_TOPIC = "joint_states"
 
@@ -56,6 +56,14 @@ def with_note(motion: BackendMotion, note: str) -> BackendMotion:
     if not note:
         return motion
     return replace(motion, detail=note + motion.detail)
+
+
+def health_from(action_ready: bool, state_fresh: bool, detail: str) -> BackendHealth:
+    return BackendHealth(
+        reachable=state_fresh,
+        controller_active=action_ready and state_fresh,
+        detail=detail,
+    )
 
 
 def refused(position_rad: float, detail: str) -> BackendMotion:
