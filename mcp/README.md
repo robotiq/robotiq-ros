@@ -213,8 +213,10 @@ outcomes, so a stalled close is reported as a grasp, not a failure.
   drivers is the problem. `robotiq_control.launch.py` has no option to put a
   driver under `/left` or `/right`, so a second driver started next to the
   first can't get its own name, and its controllers never start. Until the
-  launch file takes a namespace, keep one entry in `grippers.yaml`, or write
-  your own launch file that starts each driver under its namespace.
+  launch file takes a namespace
+  ([#89](https://github.com/robotiq/ros/issues/89)), keep one entry in
+  `grippers.yaml`, or write your own launch file that starts each driver under
+  its namespace.
 
 ## Development
 
