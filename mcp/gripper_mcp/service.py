@@ -31,6 +31,7 @@ from gripper_mcp.models import (
     Outcome,
 )
 from gripper_mcp.units import (
+    MM_PER_M,
     GripperGeometry,
     Stroke,
     clamp,
@@ -42,7 +43,6 @@ from gripper_mcp.units import (
 
 MIN_EFFORT = 0.0
 MAX_EFFORT = 1.0
-MM_PER_M = 1000.0
 MM_DECIMALS = 2
 RAD_DECIMALS = 4
 FRACTION_DECIMALS = 4

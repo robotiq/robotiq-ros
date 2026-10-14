@@ -80,6 +80,37 @@ def describe(text: str) -> str:
     return cleandoc(text).strip()
 
 
+STOP_NOTE = (
+    "Stopping on something before the commanded position is "
+    'outcome="stopped_on_object" with object_detected=true; whether that is '
+    "a grasp or an obstruction is the caller's call."
+)
+GRIPPER_ARG = "gripper_name: Name of the gripper (see gripper_list_grippers)."
+POSITION_ARG = (
+    "position_mm: Target opening in millimetres, 0.0 (closed) up to the "
+    "model's max opening. Values outside that range are clamped."
+)
+EFFORT_ARG = (
+    "effort: Grip effort from 0.0 (the gripper's minimum force) to 1.0 (its "
+    "maximum), clamped. Omit for the model's default; lower it for fragile "
+    "objects. Not a force in newtons: the force applied depends on the speed, "
+    "the fingers and the object."
+)
+SPEED_ARG = (
+    "speed_mm_s: Speed of each finger in mm/s, clamped to the model's "
+    "min_speed_mm_s to max_speed_mm_s (see gripper_list_grippers). Omit for "
+    "full speed; slow down for fragile or light objects. Not applied on ROS 2 "
+    "Humble (the detail says so), and a simulator may ignore it."
+)
+
+
+def motion_description(summary: str, *args: str) -> str:
+    listed = "\n".join(
+        f"    {arg}" for arg in (GRIPPER_ARG, *args, EFFORT_ARG, SPEED_ARG)
+    )
+    return f"{summary}\n\n{STOP_NOTE}\n\nArgs:\n{listed}"
+
+
 BackendFactory = Callable[[GripperConfig, GripperModelSpec], GripperBackend]
 SHUTDOWN_HOOKS: list[Callable[[], None]] = []
 
@@ -208,29 +239,8 @@ def register_gripper_tools(mcp: FastMCP, service: GripperService) -> None:
     @mcp.tool(
         name="gripper_open",
         annotations=OPENS,
-        description=describe(
-            """
-        Open one gripper fully, releasing anything it holds.
-
-        Stopping on something before the commanded position is
-        outcome="stopped_on_object" with object_detected=true; whether that is
-        a grasp or an obstruction is the caller's call.
-
-        Args:
-            gripper_name: Name of the gripper (see gripper_list_grippers).
-            effort: Grip effort from 0.0 (the gripper's minimum force) to
-                1.0 (its maximum). Omit for the model's default. Lower it for
-                fragile objects. Values outside 0.0 to 1.0 are clamped. Not a
-                force in newtons: the force actually applied depends on the
-                speed, the fingers and the object.
-            speed_mm_s: Speed of each finger in millimetres per second, within the
-                model's range (min_speed_mm_s to max_speed_mm_s from
-                gripper_list_grippers). Omit for full speed. Slow down for
-                fragile or light objects. Values outside the range are
-                clamped. A request, not a guarantee: on a controller that
-                takes no speed (ROS 2 Humble) the move runs at full speed and
-                the detail says so, and a simulator may ignore it.
-            """
+        description=motion_description(
+            "Open one gripper fully, releasing anything it holds."
         ),
     )
     def gripper_open(
@@ -243,30 +253,9 @@ def register_gripper_tools(mcp: FastMCP, service: GripperService) -> None:
     @mcp.tool(
         name="gripper_close",
         annotations=CLOSES,
-        description=describe(
-            """
-        Close one gripper fully.
-
-        Stopping on something before the commanded position is
-        outcome="stopped_on_object" with object_detected=true; whether that is
-        a grasp or an obstruction is the caller's call.
-        A full close with nothing between the fingers is outcome="reached".
-
-        Args:
-            gripper_name: Name of the gripper (see gripper_list_grippers).
-            effort: Grip effort from 0.0 (the gripper's minimum force) to
-                1.0 (its maximum). Omit for the model's default. Lower it for
-                fragile objects. Values outside 0.0 to 1.0 are clamped. Not a
-                force in newtons: the force actually applied depends on the
-                speed, the fingers and the object.
-            speed_mm_s: Speed of each finger in millimetres per second, within the
-                model's range (min_speed_mm_s to max_speed_mm_s from
-                gripper_list_grippers). Omit for full speed. Slow down for
-                fragile or light objects. Values outside the range are
-                clamped. A request, not a guarantee: on a controller that
-                takes no speed (ROS 2 Humble) the move runs at full speed and
-                the detail says so, and a simulator may ignore it.
-            """
+        description=motion_description(
+            "Close one gripper fully. A full close with nothing between the "
+            'fingers is outcome="reached".'
         ),
     )
     def gripper_close(
@@ -279,31 +268,8 @@ def register_gripper_tools(mcp: FastMCP, service: GripperService) -> None:
     @mcp.tool(
         name="gripper_move_to",
         annotations=CLOSES,
-        description=describe(
-            """
-        Move one gripper to a specific position.
-
-        Stopping on something before the commanded position is
-        outcome="stopped_on_object" with object_detected=true; whether that is
-        a grasp or an obstruction is the caller's call.
-
-        Args:
-            gripper_name: Name of the gripper (see gripper_list_grippers).
-            position_mm: Target opening in millimetres, 0.0 (closed) up to the
-                model's max opening. Values outside that range are clamped.
-            effort: Grip effort from 0.0 (the gripper's minimum force) to
-                1.0 (its maximum). Omit for the model's default. Lower it for
-                fragile objects. Values outside 0.0 to 1.0 are clamped. Not a
-                force in newtons: the force actually applied depends on the
-                speed, the fingers and the object.
-            speed_mm_s: Speed of each finger in millimetres per second, within the
-                model's range (min_speed_mm_s to max_speed_mm_s from
-                gripper_list_grippers). Omit for full speed. Slow down for
-                fragile or light objects. Values outside the range are
-                clamped. A request, not a guarantee: on a controller that
-                takes no speed (ROS 2 Humble) the move runs at full speed and
-                the detail says so, and a simulator may ignore it.
-            """
+        description=motion_description(
+            "Move one gripper to a specific position.", POSITION_ARG
         ),
     )
     def gripper_move_to(

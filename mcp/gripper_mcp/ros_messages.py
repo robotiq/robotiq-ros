@@ -47,8 +47,8 @@ def motion_from_result(
 def speed_ignored_message(action_type: str) -> str:
     return (
         f"Speed not applied: the controller takes {action_type} goals, which "
-        "carry no speed (ROS 2 Humble's gripper controller), so the fingers "
-        "moved at the controller's own speed. "
+        "carry no speed (ROS 2 Humble's gripper controller); the controller "
+        "moves the fingers at its own speed. "
     )
 
 

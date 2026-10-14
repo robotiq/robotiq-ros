@@ -27,7 +27,7 @@ def test_a_speed_on_a_controller_without_one_says_it_was_not_applied():
 
     assert message.startswith("Speed not applied")
     assert "GripperCommand" in message
-    assert "the controller's own speed" in message
+    assert "at its own speed" in message
 
 
 def test_a_note_goes_in_front_of_the_motion_detail():

@@ -268,7 +268,14 @@ class RosGripperBackend:
         motion = self._send(client, goal, here, deadline, timeout_s)
         return with_note(motion, note)
 
-    def _send(self, client, goal, here: float, deadline: float, timeout_s: float):
+    def _send(
+        self,
+        client: ActionClient,
+        goal,
+        here: float,
+        deadline: float,
+        timeout_s: float,
+    ) -> BackendMotion:
         sent = client.send_goal_async(goal)
         handle = wait_for(sent, remaining(deadline))
         if handle is None:

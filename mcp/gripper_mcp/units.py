@@ -27,6 +27,8 @@ joint angle over ROS, so it carries this small second map.
 
 from dataclasses import dataclass
 
+MM_PER_M = 1000.0
+
 
 @dataclass(frozen=True)
 class Stroke:

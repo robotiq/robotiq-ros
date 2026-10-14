@@ -21,10 +21,9 @@ stroke:
   # of the description's closed angle.
   closed_tolerance_mm: 1.5
 
-# Finger speed range from the product datasheet, the span the driver maps
-# onto the speed register (its gripper_min_speed / gripper_max_speed). A
-# requested speed outside it is clamped; a move that names none runs at the
-# controller's default, full speed.
+# Finger speed range from the product datasheet. A requested speed outside it
+# is clamped; a move that names none runs at the controller's default, full
+# speed. The driver scales the request against its own gripper_max_speed.
 speed:
   min_mm_s: 20.0
   max_mm_s: 150.0

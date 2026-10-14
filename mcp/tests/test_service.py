@@ -8,6 +8,7 @@ from gripper_mcp.service import (
     UnknownGripperError,
     classify,
 )
+from gripper_mcp.units import MM_PER_M
 
 NARROW = "robotiq_2f_85"
 WIDE = "robotiq_2f_140"
@@ -20,9 +21,8 @@ DATASHEET_EFFORT = 0.2
 GENTLE_EFFORT = 0.1
 MIN_EFFORT = 0.0
 MAX_EFFORT = 1.0
+SPEED = load_model_specs(SPEC_DIR, {NARROW})[NARROW].speed
 CRAWL_SPEED_MM_S = 1.0
-DATASHEET_MIN_SPEED_MM_S = 20.0
-DATASHEET_MAX_SPEED_MM_S = 150.0
 GENTLE_SPEED_MM_S = 40.0
 
 
@@ -187,20 +187,20 @@ def test_a_speed_in_mm_per_s_reaches_the_backend_in_m_per_s(move):
 
     result = move(service)
 
-    assert backend.last_speed_m_s == pytest.approx(GENTLE_SPEED_MM_S / 1000.0)
+    assert backend.last_speed_m_s == pytest.approx(GENTLE_SPEED_MM_S / MM_PER_M)
     assert "clamped" not in result.detail
 
 
 @pytest.mark.parametrize(
     ("requested", "applied"),
-    [(500.0, DATASHEET_MAX_SPEED_MM_S), (5.0, DATASHEET_MIN_SPEED_MM_S)],
+    [(500.0, SPEED.max_mm_s), (5.0, SPEED.min_mm_s)],
 )
 def test_a_speed_outside_the_datasheet_range_is_clamped_and_said(requested, applied):
     service, backend = service_with()
 
     result = service.close_fully(ARM, speed_mm_s=requested)
 
-    assert backend.last_speed_m_s == pytest.approx(applied / 1000.0)
+    assert backend.last_speed_m_s == pytest.approx(applied / MM_PER_M)
     assert (
         f"Requested speed {requested:g} mm/s, clamped to {applied:g} mm/s."
         in result.detail
@@ -223,8 +223,8 @@ def test_listed_grippers_report_their_backend():
     assert (entry.gripper_name, entry.model, entry.backend) == (ARM, NARROW, "mock")
     assert entry.max_opening_mm == pytest.approx(FULLY_OPEN_MM)
     assert (entry.min_speed_mm_s, entry.max_speed_mm_s) == (
-        DATASHEET_MIN_SPEED_MM_S,
-        DATASHEET_MAX_SPEED_MM_S,
+        SPEED.min_mm_s,
+        SPEED.max_mm_s,
     )
 
 

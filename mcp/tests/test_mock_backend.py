@@ -2,13 +2,15 @@ import pytest
 
 from fakes.gripper import MOCK_GEOMETRY, MOCK_JOINT, MockGripperBackend
 from gripper_mcp.backend import GripperBackend
-from gripper_mcp.units import Stroke
+from gripper_mcp.units import MM_PER_M, Stroke
 
 CLOSED = MOCK_GEOMETRY.knuckle_rad_closed
 OPEN = MOCK_GEOMETRY.knuckle_rad_open
 EFFORT = 0.2
 GENEROUS_TIMEOUT_S = 30.0
 CUBE_WIDTH_MM = 40.0
+FINGER_SPEED_MM_S = 20.0
+FULL_CLOSE_AT_20_MM_S_S = 85.0 / (2 * FINGER_SPEED_MM_S)
 
 
 def instant_mock(**kwargs) -> MockGripperBackend:
@@ -121,3 +123,12 @@ def test_travel_time_grows_with_distance():
     long = sum(slept)
 
     assert long > short
+
+
+def test_a_named_speed_is_per_finger_so_the_opening_closes_twice_as_fast():
+    slept: list[float] = []
+    backend = MockGripperBackend(sleep_fn=slept.append)
+
+    backend.move_to(CLOSED, EFFORT, GENEROUS_TIMEOUT_S, FINGER_SPEED_MM_S / MM_PER_M)
+
+    assert sum(slept) == pytest.approx(FULL_CLOSE_AT_20_MM_S_S)

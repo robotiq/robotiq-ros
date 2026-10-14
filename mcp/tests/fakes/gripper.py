@@ -13,7 +13,8 @@ hardware is the ROS driver's job, on ros2_control's fake hardware
 exercised too.
 
 A move that names a speed travels at it and remembers it (`last_speed_m_s`);
-one that names none travels at `travel_speed_mm_s`.
+one that names none travels at `travel_speed_mm_s`. Both are per finger, as
+on the real gripper, so the opening changes at twice that.
 
 Travel is simulated through an injected `sleep_fn` so tests run instantly while
 a container still moves in something like real time.
@@ -24,6 +25,7 @@ from collections.abc import Callable
 
 from gripper_mcp.backend import BackendHealth, BackendMotion, BackendState
 from gripper_mcp.units import (
+    MM_PER_M,
     GripperGeometry,
     JointGeometry,
     Stroke,
@@ -37,7 +39,7 @@ MOCK_STROKE = Stroke(max_opening_mm=85.0, closed_tolerance_mm=1.5)
 MOCK_GEOMETRY = GripperGeometry.of(MOCK_STROKE, MOCK_JOINT)
 
 NOMINAL_TRAVEL_SPEED_MM_S = 150.0
-MM_PER_M = 1000.0
+FINGERS = 2
 
 
 class MockGripperBackend:
@@ -99,7 +101,7 @@ class MockGripperBackend:
         travel_mm = abs(
             self.opening_mm_for(stop_at) - self.opening_mm_for(self._position_rad)
         )
-        duration_s = travel_mm / speed_mm_s
+        duration_s = travel_mm / (speed_mm_s * FINGERS)
         if duration_s > timeout_s:
             self._sleep(timeout_s)
             return BackendMotion(
