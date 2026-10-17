@@ -6,8 +6,8 @@
   <description>Controllers for the Robotiq gripper.</description>
   <maintainer email="noreply@robotiq.com">Robotiq</maintainer>
   <license>BSD-3-Clause</license>
-  <url type="repository">https://github.com/robotiq/ros</url>
-  <url type="bugtracker">https://github.com/robotiq/ros/issues</url>
+  <url type="repository">https://github.com/robotiq/robotiq-ros</url>
+  <url type="bugtracker">https://github.com/robotiq/robotiq-ros/issues</url>
   <author>Cory Crean</author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

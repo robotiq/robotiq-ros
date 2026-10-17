@@ -11,10 +11,10 @@ in-repo branch, so stacked changes end up showing each other's commits.
 
 - **Small fix or feature?** Open the PR directly.
 - **Anything larger** — a new feature, a change to the launch or action surface,
-  a new package — please [open an issue](https://github.com/robotiq/ros/issues)
+  a new package — please [open an issue](https://github.com/robotiq/robotiq-ros/issues)
   first so we can agree on the shape before you spend the time. Some constraints
   are not obvious from the code (see [Compatibility](#compatibility) below).
-- **Bug report?** [Open an issue](https://github.com/robotiq/ros/issues) — the
+- **Bug report?** [Open an issue](https://github.com/robotiq/robotiq-ros/issues) — the
   bug template asks for the ROS distro, hardware, exact launch command and
   bringup output that make a driver problem placeable.
 
@@ -23,7 +23,7 @@ in-repo branch, so stacked changes end up showing each other's commits.
 Both the grippers and tactile_sensors SDKs arrive as submodules, so clone recursively:
 
 ```bash
-git clone --recurse-submodules https://github.com/robotiq/ros.git
+git clone --recurse-submodules https://github.com/robotiq/robotiq-ros.git
 ```
 
 Replace `robotiq` with your GitHub user if you are working from a fork.
@@ -35,7 +35,7 @@ is a slim runtime stage — no compiler, no colcon, tests not built — so it is
 for trying the drivers, not developing them:
 
 ```bash
-cd ros
+cd robotiq-ros
 ./docker/run.sh gripper          # or: sensor, both
 ```
 
