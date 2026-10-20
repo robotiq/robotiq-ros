@@ -39,13 +39,16 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <string_view>
 
 #include <Robotiq/gripper/connection_state.hpp>
 #include <Robotiq/gripper/device_profile.hpp>
 #include <Robotiq/gripper/fault_status.hpp>
+#include <Robotiq/gripper/logger.hpp>
 #include <Robotiq/gripper/status.hpp>
+#include <Robotiq/gripper/units.hpp>
 
 namespace robotiq_driver {
 
@@ -100,8 +103,7 @@ inline constexpr const char* kProfileParam = "gripper_profile";
 //! \p closed_position of zero: there is no defensible register value, and
 //! commanding a made-up one moves a gripper that may be holding something.
 //!
-//! Truncates rather than rounds, so a position read off the gripper and
-//! commanded straight back can land one count below where it came from.
+//! Rounds, so a register round-trips through the joint value.
 [[nodiscard]] inline std::optional<uint8_t> registerFromJointPosition(double joint_position,
                                                                       double closed_position,
                                                                       const Robotiq::DeviceProfile& profile)
@@ -111,7 +113,35 @@ inline constexpr const char* kProfileParam = "gripper_profile";
    {
       return std::nullopt;
    }
-   return static_cast<uint8_t>(std::clamp(counts, 0.0, 255.0));
+   return static_cast<uint8_t>(std::lround(std::clamp(counts, 0.0, 255.0)));
+}
+
+//! Normalized position (0 open .. 1 closed) -> the joint position commanding the same register.
+[[nodiscard]] inline std::optional<double> jointPositionFromNormalized(
+   double normalized,
+   double closed_position,
+   const Robotiq::DeviceProfile& profile,
+   const std::shared_ptr<Robotiq::Logger>& logger = nullptr)
+{
+   const std::optional<uint8_t> registerValue = Robotiq::units::normalizedToRegister(normalized, logger);
+   if(!registerValue || !isValidClosedPosition(closed_position))
+   {
+      return std::nullopt;
+   }
+   return jointPositionFromRegister(*registerValue, closed_position, profile);
+}
+
+//! Joint position -> normalized position (0 open .. 1 closed), through its register.
+[[nodiscard]] inline std::optional<double> normalizedFromJointPosition(double joint_position,
+                                                                       double closed_position,
+                                                                       const Robotiq::DeviceProfile& profile)
+{
+   const std::optional<uint8_t> position = registerFromJointPosition(joint_position, closed_position, profile);
+   if(!position)
+   {
+      return std::nullopt;
+   }
+   return Robotiq::units::normalizedFromRegister(*position);
 }
 
 // Deprecated since 1.4.0 and removed in the next major release. They assume

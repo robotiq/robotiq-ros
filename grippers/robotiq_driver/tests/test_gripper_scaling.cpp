@@ -31,8 +31,12 @@
 
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <optional>
+#include <string_view>
+#include <tuple>
 #include <type_traits>
+#include <vector>
 
 #include <Robotiq/gripper/to_string.hpp>
 
@@ -75,21 +79,72 @@ TEST(GripperScaling, TheProfileSetsTheTravelBand)
    EXPECT_EQ(kRemeasured2F85.openPosition, registerFromJointPosition(0.0, kClosedPosition, kRemeasured2F85));
 }
 
-TEST(GripperScaling, RegisterRoundTripLosesAtMostOneCount)
+TEST(GripperScaling, RegisterRoundTripIsExact)
 {
-   // counts -> radians -> counts does not always land back on the same count:
-   // the reverse mapping truncates, so a position read off the gripper and
-   // commanded straight back can come out one low. That is the behaviour the
-   // driver has always had, pinned here rather than fixed, so that changing it
-   // is a visible decision rather than a side effect of some later edit.
-   for(uint8_t counts = kOpenCount; counts <= kClosedCount; ++counts)
+   for(int counts = 0; counts <= 0xFF; ++counts)
    {
-      const std::optional<uint8_t> round_tripped =
-         registerFromJointPosition(jointPositionFromRegister(counts, kClosedPosition, k2F85), kClosedPosition, k2F85);
-      ASSERT_TRUE(round_tripped.has_value());
-      EXPECT_THAT(*round_tripped, testing::AnyOf(counts, counts - 1))
-         << "round trip drifted more than a count at " << static_cast<int>(counts) << " counts";
+      const auto raw = static_cast<uint8_t>(counts);
+      EXPECT_EQ(
+         raw,
+         registerFromJointPosition(jointPositionFromRegister(raw, kClosedPosition, k2F85), kClosedPosition, k2F85))
+         << "at " << counts << " counts";
    }
+}
+
+TEST(GripperScaling, TheNormalizedEndsAreTheByteEnds)
+{
+   EXPECT_EQ(0,
+             registerFromJointPosition(jointPositionFromNormalized(0.0, kClosedPosition, k2F85).value(),
+                                       kClosedPosition,
+                                       k2F85));
+   EXPECT_EQ(255,
+             registerFromJointPosition(jointPositionFromNormalized(1.0, kClosedPosition, k2F85).value(),
+                                       kClosedPosition,
+                                       k2F85));
+   EXPECT_LT(jointPositionFromNormalized(0.0, kClosedPosition, k2F85).value(), 0.0);
+   EXPECT_GT(jointPositionFromNormalized(1.0, kClosedPosition, k2F85).value(), kClosedPosition);
+}
+
+TEST(GripperScaling, ANormalizedPositionCommandEqualsItselfAfterAConversionRoundTrip)
+{
+   for(int counts = 0; counts <= 0xFF; ++counts)
+   {
+      const double normalized = Robotiq::units::normalizedFromRegister(static_cast<uint8_t>(counts));
+      const std::optional<double> joint = jointPositionFromNormalized(normalized, kClosedPosition, kRemeasured2F85);
+      ASSERT_TRUE(joint.has_value());
+      EXPECT_EQ(counts, registerFromJointPosition(*joint, kClosedPosition, kRemeasured2F85)) << "at " << counts;
+      EXPECT_DOUBLE_EQ(normalized, normalizedFromJointPosition(*joint, kClosedPosition, kRemeasured2F85).value());
+   }
+}
+
+TEST(GripperScaling, ANormalizedPositionWithNoRegisterValueCommandsNothing)
+{
+   EXPECT_FALSE(jointPositionFromNormalized(std::numeric_limits<double>::quiet_NaN(), kClosedPosition, k2F85));
+   EXPECT_FALSE(jointPositionFromNormalized(std::numeric_limits<double>::infinity(), kClosedPosition, k2F85));
+   EXPECT_FALSE(jointPositionFromNormalized(0.5, 0.0, k2F85));
+   EXPECT_FALSE(normalizedFromJointPosition(std::numeric_limits<double>::quiet_NaN(), kClosedPosition, k2F85));
+}
+
+TEST(GripperScaling, AClampedNormalizedPositionWarnsOnTheGivenLogger)
+{
+   struct Collecting : Robotiq::Logger
+   {
+      void log(Level level, std::string_view) override { levels.push_back(level); }
+      std::vector<Level> levels;
+   };
+   const auto logger = std::make_shared<Collecting>();
+   std::ignore = jointPositionFromNormalized(0.5, kClosedPosition, k2F85, logger);
+   EXPECT_TRUE(logger->levels.empty());
+   std::ignore = jointPositionFromNormalized(1.5, kClosedPosition, k2F85, logger);
+   EXPECT_EQ(logger->levels, std::vector<Robotiq::Logger::Level>{Robotiq::Logger::Level::Warn});
+}
+
+TEST(GripperScaling, ANormalizedPositionOutsideTheUnitSpanClamps)
+{
+   EXPECT_EQ(jointPositionFromNormalized(-0.5, kClosedPosition, k2F85),
+             jointPositionFromNormalized(0.0, kClosedPosition, k2F85));
+   EXPECT_EQ(jointPositionFromNormalized(1.5, kClosedPosition, k2F85),
+             jointPositionFromNormalized(1.0, kClosedPosition, k2F85));
 }
 
 TEST(GripperScaling, PositionsOutsideTheJointRangeClampIntoTheByte)
