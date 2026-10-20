@@ -15,10 +15,14 @@ controller_manager:
       type: robotiq_controllers/RobotiqActivationController
     robotiq_gripper_status_broadcaster:
       type: robotiq_controllers/GripperStatusBroadcaster
+    robotiq_normalized_position_broadcaster:
+      type: robotiq_controllers/NormalizedPositionBroadcaster
 
 robotiq_gripper_controller:
   ros__parameters:
     joint: $(var gripper_joint)
+    gripper_closed_position: $(var gripper_closed_position)
+    gripper_profile: $(var gripper_profile)
 
     max_effort: 50.0   # TODO tune
 
@@ -32,3 +36,9 @@ robotiq_gripper_controller:
 robotiq_activation_controller:
   ros__parameters:
     default: true
+
+robotiq_normalized_position_broadcaster:
+  ros__parameters:
+    joint: $(var gripper_joint)
+    gripper_closed_position: $(var gripper_closed_position)
+    gripper_profile: $(var gripper_profile)

@@ -44,6 +44,8 @@ controller_manager:
       type: robotiq_controllers/GripperActionController
     robotiq_gripper_status_broadcaster:
       type: robotiq_controllers/GripperStatusBroadcaster
+    robotiq_normalized_position_broadcaster:
+      type: robotiq_controllers/NormalizedPositionBroadcaster
 
 robotiq_gripper_controller:
   ros__parameters:
@@ -57,3 +59,7 @@ robotiq_gripper_controller:
     # Hz; how often a decided goal is relayed to the client (stock: 20).
     action_monitor_rate: 100.0
     use_object_status: false  # no object_status to read, see above
+
+robotiq_normalized_position_broadcaster:
+  ros__parameters:
+    joint: $(var gripper_joint)
