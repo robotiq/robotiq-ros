@@ -30,23 +30,33 @@
 //! gripper's own object detection instead of the velocity stall timeout:
 //! parallel_gripper_controller's from Jazzy on, gripper_controllers' on Humble.
 //! Humble EOL: simplify — one base remains, so this can become a plain class.
+//! Also serves normalized_gripper_cmd (0 = open, 1 = closed), forwarded to gripper_cmd.
 
 #pragma once
 
+#include <cmath>
 #include <exception>
 #include <functional>
 #include <limits>
+#include <map>
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 
 #include "controller_interface/controller_interface.hpp"
 #include "hardware_interface/loaned_state_interface.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 #include "robotiq_controllers/gripper_status.hpp"
+#include "robotiq_controllers/joint_scale.hpp"
 #include "robotiq_controllers/object_status_goal.hpp"
 #include "robotiq_controllers/ros2_control_compat.hpp"
 #include "robotiq_driver/gripper_scaling.hpp"
+#include "robotiq_driver/rclcpp_logger.hpp"
 
 namespace robotiq_controllers {
+
+inline constexpr const char* kNormalizedAction = "normalized_gripper_cmd";
 
 template <class Base>
 class ObjectStatusController : public Base
@@ -87,13 +97,7 @@ public:
          use_object_status_ = this->template auto_declare<bool>(object_status_goal::kUseParameter, false);
          object_status_timeout_ = this->template auto_declare<double>(object_status_goal::kTimeoutParameter,
                                                                       object_status_goal::kDefaultTimeout);
-         if constexpr(!compat::detail::HasRobotDescription<Base>::value)
-         {
-            // Humble EOL: delete; the URDF supplies it from Jazzy on.
-            this->template auto_declare<double>(robotiq_driver::kClosedPositionParam,
-                                                std::numeric_limits<double>::quiet_NaN());
-            this->template auto_declare<std::string>(robotiq_driver::kProfileParam, "");
-         }
+         joint_scale::declareParameters(*this);
       }
       catch(const std::exception& e)
       {
@@ -120,8 +124,8 @@ public:
                       object_status_timeout_);
          return controller_interface::CallbackReturn::ERROR;
       }
-      closed_position_ = closedPosition();
-      profile_ = profile();
+      closed_position_ = joint_scale::closedPosition(*this, this->params_.joint);
+      profile_ = joint_scale::profile(*this, this->params_.joint);
       if(use_object_status_ && closed_position_ && !profile_)
       {
          RCLCPP_WARN(this->get_node()->get_logger(),
@@ -138,6 +142,7 @@ public:
                      this->params_.joint.c_str(),
                      object_status_goal::kTimeoutParameter);
       }
+      startNormalizedAction();
       return controller_interface::CallbackReturn::SUCCESS;
    }
 
@@ -171,6 +176,139 @@ protected:
    using RealtimeGoalHandlePtr = typename Base::RealtimeGoalHandlePtr;
 
 private:
+   using Action = typename Base::GripperCommandAction;
+   using NormalizedGoalHandle = rclcpp_action::ServerGoalHandle<Action>;
+   using ForwardedGoalHandle = rclcpp_action::ClientGoalHandle<Action>;
+
+   void startNormalizedAction()
+   {
+      normalized_server_.reset();
+      joint_client_.reset();
+      if(!closed_position_ || !profile_)
+      {
+         RCLCPP_WARN(this->get_node()->get_logger(),
+                     "No %s: joint '%s' has no usable %s and %s.",
+                     kNormalizedAction,
+                     this->params_.joint.c_str(),
+                     robotiq_driver::kClosedPositionParam,
+                     robotiq_driver::kProfileParam);
+         return;
+      }
+      sdk_logger_ = std::make_shared<robotiq_driver::RclcppLogger>(this->get_node()->get_logger());
+      joint_client_ = rclcpp_action::create_client<Action>(this->get_node(), "~/gripper_cmd");
+      normalized_server_ = rclcpp_action::create_server<Action>(
+         this->get_node(),
+         std::string{"~/"} + kNormalizedAction,
+         [this](const rclcpp_action::GoalUUID&, std::shared_ptr<const typename Action::Goal> goal) {
+            return onNormalizedGoal(*goal);
+         },
+         [this](std::shared_ptr<NormalizedGoalHandle> goal) { return onNormalizedCancel(goal); },
+         [this](std::shared_ptr<NormalizedGoalHandle> goal) { relay(goal); });
+   }
+
+   // Called once per goal, so a clamp warns once.
+   std::optional<double> jointPosition(const typename Action::Goal& goal) const
+   {
+      const std::optional<double> normalized = compat::goalPosition(goal);
+      if(!normalized)
+      {
+         return std::nullopt;
+      }
+      return robotiq_driver::jointPositionFromNormalized(*normalized, *closed_position_, *profile_, sdk_logger_);
+   }
+
+   rclcpp_action::GoalResponse onNormalizedGoal(const typename Action::Goal& goal)
+   {
+      const std::optional<double> normalized = compat::goalPosition(goal);
+      if(!normalized || !std::isfinite(*normalized))
+      {
+         RCLCPP_ERROR(this->get_node()->get_logger(), "Rejected a %s goal with no finite position.", kNormalizedAction);
+         return rclcpp_action::GoalResponse::REJECT;
+      }
+      return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+   }
+
+   rclcpp_action::CancelResponse onNormalizedCancel(const std::shared_ptr<NormalizedGoalHandle>& goal)
+   {
+      const std::lock_guard<std::mutex> lock(forwarded_mutex_);
+      Forwarded& forwarded = forwarded_[goal->get_goal_id()];
+      if(forwarded.handle)
+      {
+         joint_client_->async_cancel_goal(forwarded.handle);
+      }
+      else
+      {
+         // Cancelled once gripper_cmd acknowledges it.
+         forwarded.cancel_requested = true;
+      }
+      return rclcpp_action::CancelResponse::ACCEPT;
+   }
+
+   void relay(const std::shared_ptr<NormalizedGoalHandle>& goal)
+   {
+      if(!joint_client_->action_server_is_ready())
+      {
+         RCLCPP_ERROR(this->get_node()->get_logger(),
+                      "%s is not up; aborting the %s goal.",
+                      "gripper_cmd",
+                      kNormalizedAction);
+         forget(goal->get_goal_id());
+         goal->abort(std::make_shared<typename Action::Result>());
+         return;
+      }
+      typename Action::Goal joint_goal = *goal->get_goal();
+      compat::setGoalPosition(joint_goal, jointPosition(joint_goal).value());
+
+      typename rclcpp_action::Client<Action>::SendGoalOptions options;
+      options.goal_response_callback = [this, goal](typename ForwardedGoalHandle::SharedPtr forwarded) {
+         if(!forwarded)
+         {
+            forget(goal->get_goal_id());
+            goal->abort(std::make_shared<typename Action::Result>());
+            return;
+         }
+         const std::lock_guard<std::mutex> lock(forwarded_mutex_);
+         Forwarded& entry = forwarded_[goal->get_goal_id()];
+         entry.handle = forwarded;
+         if(entry.cancel_requested)
+         {
+            joint_client_->async_cancel_goal(forwarded);
+         }
+      };
+      options.result_callback = [this, goal](const typename ForwardedGoalHandle::WrappedResult& forwarded) {
+         forget(goal->get_goal_id());
+         auto result = forwarded.result ? std::make_shared<typename Action::Result>(*forwarded.result)
+                                        : std::make_shared<typename Action::Result>();
+         compat::convertReportedPosition(*result, [this](double position) { return normalizedPosition(position); });
+         if(forwarded.code == rclcpp_action::ResultCode::SUCCEEDED)
+         {
+            goal->succeed(result);
+         }
+         else if(forwarded.code == rclcpp_action::ResultCode::CANCELED && goal->is_canceling())
+         {
+            goal->canceled(result);
+         }
+         else
+         {
+            // Preempted by a newer goal on either action.
+            goal->abort(result);
+         }
+      };
+      joint_client_->async_send_goal(joint_goal, options);
+   }
+
+   void forget(const rclcpp_action::GoalUUID& goal)
+   {
+      const std::lock_guard<std::mutex> lock(forwarded_mutex_);
+      forwarded_.erase(goal);
+   }
+
+   double normalizedPosition(double joint_position) const
+   {
+      return robotiq_driver::normalizedFromJointPosition(joint_position, *closed_position_, *profile_)
+         .value_or(std::numeric_limits<double>::quiet_NaN());
+   }
+
    void decideFromObjectStatus(const rclcpp::Time& time)
    {
       const std::optional<RealtimeGoalHandlePtr> goal = compat::tryGet<RealtimeGoalHandlePtr>(this->rt_active_goal_);
@@ -205,43 +343,6 @@ private:
       return robotiq_driver::registerFromJointPosition(*position, *closed_position_, *profile_);
    }
 
-   std::optional<double> closedPosition()
-   {
-      if constexpr(compat::detail::HasRobotDescription<Base>::value)
-      {
-         return object_status_goal::closedPositionFromUrdf(this->get_robot_description(), this->params_.joint);
-      }
-      else
-      {
-         // Humble EOL: delete this branch.
-         const double closed_position =
-            this->get_node()->get_parameter(robotiq_driver::kClosedPositionParam).as_double();
-         return robotiq_driver::isValidClosedPosition(closed_position) ? std::optional(closed_position) : std::nullopt;
-      }
-   }
-
-   std::optional<Robotiq::DeviceProfile> profile()
-   {
-      if constexpr(compat::detail::HasRobotDescription<Base>::value)
-      {
-         return object_status_goal::profileFromUrdf(this->get_robot_description(), this->params_.joint);
-      }
-      else
-      {
-         // Humble EOL: delete this branch.
-         const std::string name = this->get_node()->get_parameter(robotiq_driver::kProfileParam).as_string();
-         if(name.empty())
-         {
-            RCLCPP_WARN(this->get_node()->get_logger(),
-                        "No %s: assuming the 2F-85's. Deprecated since 1.4.0; it is required from the next major "
-                        "release.",
-                        robotiq_driver::kProfileParam);
-            return Robotiq::profiles::k2F85;
-         }
-         return robotiq_driver::profileNamed(name);
-      }
-   }
-
    void finish(const RealtimeGoalHandlePtr& goal, const object_status_goal::Outcome& outcome)
    {
       const std::optional<double> position = compat::getValue(this->joint_position_state_interface_->get());
@@ -270,5 +371,18 @@ private:
    std::optional<std::reference_wrapper<hardware_interface::LoanedStateInterface>> object_status_;
    RealtimeGoalHandlePtr tracked_goal_;
    object_status_goal::Verdict verdict_;
+
+   struct Forwarded
+   {
+      typename ForwardedGoalHandle::SharedPtr handle;
+      bool cancel_requested = false;
+   };
+   // The action callbacks run on the executor.
+   std::mutex forwarded_mutex_;
+   std::map<rclcpp_action::GoalUUID, Forwarded> forwarded_;
+   std::shared_ptr<Robotiq::Logger> sdk_logger_;
+   // Last, so destroyed first: no callback outlives the members above.
+   typename rclcpp_action::Client<Action>::SharedPtr joint_client_;
+   typename rclcpp_action::Server<Action>::SharedPtr normalized_server_;
 };
 } // namespace robotiq_controllers

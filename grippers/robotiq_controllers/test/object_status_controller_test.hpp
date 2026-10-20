@@ -143,10 +143,12 @@ template <class Controller>
 class Testable : public Controller
 {
 public:
-   bool holdsGoal()
+   bool holdsGoal() { return activeGoal() != nullptr; }
+
+   typename Controller::RealtimeGoalHandlePtr activeGoal()
    {
       const auto goal = compat::tryGet<typename Controller::RealtimeGoalHandlePtr>(this->rt_active_goal_);
-      return goal.has_value() && *goal != nullptr;
+      return goal.value_or(nullptr);
    }
 };
 
@@ -163,6 +165,8 @@ protected:
       client_node_ = std::make_shared<rclcpp::Node>("gripper_action_client");
       executor_.add_node(client_node_);
       client_ = rclcpp_action::create_client<Action>(client_node_, std::string{"/"} + Traits::kName + "/gripper_cmd");
+      normalized_client_ =
+         rclcpp_action::create_client<Action>(client_node_, std::string{"/"} + Traits::kName + "/" + kNormalizedAction);
    }
 
    void init(const Config& config)
@@ -269,6 +273,39 @@ protected:
       update();
    }
 
+   void sendNormalizedGoal(double position)
+   {
+      ASSERT_TRUE(normalized_client_->wait_for_action_server(std::chrono::seconds{5}));
+      ASSERT_TRUE(client_->wait_for_action_server(std::chrono::seconds{5}));
+      const auto previous = controller_->activeGoal();
+      auto goal_future = normalized_client_->async_send_goal(Traits::goal(kJoint, position));
+      spinUntil([&] { return goal_future.wait_for(std::chrono::seconds{0}) == std::future_status::ready; });
+      ASSERT_EQ(std::future_status::ready, goal_future.wait_for(std::chrono::seconds{0}));
+      normalized_goal_handle_ = goal_future.get();
+      ASSERT_TRUE(normalized_goal_handle_) << "the normalized goal was rejected";
+      normalized_result_future_ = normalized_client_->async_get_result(normalized_goal_handle_);
+      const auto forwarded = [&] { return controller_->holdsGoal() && controller_->activeGoal() != previous; };
+      spinUntil(forwarded);
+      ASSERT_TRUE(forwarded()) << "the normalized goal never reached gripper_cmd";
+      update();
+   }
+
+   std::optional<Result> awaitNormalizedResult()
+   {
+      const auto arrived = [&] {
+         return normalized_result_future_.wait_for(std::chrono::seconds{0}) == std::future_status::ready;
+      };
+      spinUntil([&] {
+         update();
+         return arrived();
+      });
+      if(!arrived())
+      {
+         return std::nullopt;
+      }
+      return normalized_result_future_.get();
+   }
+
    bool resultArrived() { return result_future_.wait_for(std::chrono::seconds{0}) == std::future_status::ready; }
 
    std::optional<Result> awaitResult()
@@ -299,6 +336,9 @@ protected:
 
    rclcpp::Node::SharedPtr client_node_;
    typename rclcpp_action::Client<Action>::SharedPtr client_;
+   typename rclcpp_action::Client<Action>::SharedPtr normalized_client_;
+   typename ClientGoalHandle::SharedPtr normalized_goal_handle_;
+   std::shared_future<Result> normalized_result_future_;
    rclcpp::executors::SingleThreadedExecutor executor_;
    typename ClientGoalHandle::SharedPtr goal_handle_;
    std::shared_future<Result> result_future_;
@@ -582,6 +622,94 @@ TYPED_TEST_P(ObjectStatusControllerTest, decides_again_after_a_deactivation)
    EXPECT_TRUE(result->result->reached_goal);
 }
 
+TYPED_TEST_P(ObjectStatusControllerTest, forwards_a_normalized_goal_as_the_joint_position_of_its_register)
+{
+   this->bringUp();
+   this->object_status_ = kMoving;
+   this->sendNormalizedGoal(0.5);
+
+   const double joint_position =
+      robotiq_driver::jointPositionFromNormalized(0.5, kClosedPosition, Robotiq::profiles::k2F85).value();
+   EXPECT_DOUBLE_EQ(joint_position, this->position_command_);
+   EXPECT_EQ(
+      128,
+      robotiq_driver::registerFromJointPosition(this->position_command_, kClosedPosition, Robotiq::profiles::k2F85));
+
+   this->position_ = joint_position;
+   this->object_status_ = kAtRequestedPosition;
+   const auto result = this->awaitNormalizedResult();
+   ASSERT_TRUE(result.has_value());
+   EXPECT_EQ(rclcpp_action::ResultCode::SUCCEEDED, result->code);
+   EXPECT_TRUE(result->result->reached_goal);
+   EXPECT_DOUBLE_EQ(128.0 / 255.0, TypeParam::position(*result->result)) << "the result reports the normalized value";
+}
+
+TYPED_TEST_P(ObjectStatusControllerTest, a_joint_goal_preempts_a_normalized_goal)
+{
+   this->bringUp();
+   this->object_status_ = kMoving;
+   this->sendNormalizedGoal(1.0);
+   this->sendGoal(0.2);
+   EXPECT_DOUBLE_EQ(0.2, this->position_command_);
+
+   const auto preempted = this->awaitNormalizedResult();
+   ASSERT_TRUE(preempted.has_value());
+   EXPECT_EQ(rclcpp_action::ResultCode::ABORTED, preempted->code);
+}
+
+TYPED_TEST_P(ObjectStatusControllerTest, a_normalized_goal_preempts_a_joint_goal)
+{
+   this->bringUp();
+   this->object_status_ = kMoving;
+   this->sendGoal(0.2);
+   this->sendNormalizedGoal(0.0);
+   EXPECT_DOUBLE_EQ(robotiq_driver::jointPositionFromNormalized(0.0, kClosedPosition, Robotiq::profiles::k2F85).value(),
+                    this->position_command_);
+
+   const auto preempted = this->awaitResult();
+   ASSERT_TRUE(preempted.has_value());
+   EXPECT_NE(rclcpp_action::ResultCode::SUCCEEDED, preempted->code);
+}
+
+TYPED_TEST_P(ObjectStatusControllerTest, cancels_a_normalized_goal_on_request)
+{
+   this->bringUp();
+   this->object_status_ = kMoving;
+   this->sendNormalizedGoal(1.0);
+   auto cancel = this->normalized_client_->async_cancel_goal(this->normalized_goal_handle_);
+
+   const auto result = this->awaitNormalizedResult();
+   ASSERT_TRUE(result.has_value());
+   EXPECT_EQ(rclcpp_action::ResultCode::CANCELED, result->code);
+   EXPECT_FALSE(this->controller_->holdsGoal());
+}
+
+TYPED_TEST_P(ObjectStatusControllerTest, clamps_a_normalized_goal_outside_the_unit_span)
+{
+   this->bringUp();
+   this->object_status_ = kMoving;
+   this->sendNormalizedGoal(1.5);
+   EXPECT_DOUBLE_EQ(robotiq_driver::jointPositionFromNormalized(1.0, kClosedPosition, Robotiq::profiles::k2F85).value(),
+                    this->position_command_);
+}
+
+TYPED_TEST_P(ObjectStatusControllerTest, rejects_a_normalized_goal_with_no_finite_position)
+{
+   this->bringUp();
+   ASSERT_TRUE(this->normalized_client_->wait_for_action_server(std::chrono::seconds{5}));
+   auto goal_future = this->normalized_client_->async_send_goal(TypeParam::goal(kJoint, kNaN));
+   this->spinUntil([&] { return goal_future.wait_for(std::chrono::seconds{0}) == std::future_status::ready; });
+   ASSERT_EQ(std::future_status::ready, goal_future.wait_for(std::chrono::seconds{0}));
+   EXPECT_FALSE(goal_future.get());
+}
+
+TYPED_TEST_P(ObjectStatusControllerTest, serves_no_normalized_action_without_a_closed_position)
+{
+   this->bringUp(Config::driver().withoutClosedPosition());
+   EXPECT_TRUE(this->client_->wait_for_action_server(std::chrono::seconds{5}));
+   EXPECT_FALSE(this->normalized_client_->wait_for_action_server(std::chrono::milliseconds{500}));
+}
+
 REGISTER_TYPED_TEST_SUITE_P(ObjectStatusControllerTest,
                             claims_the_object_status_only_with_the_flag_on,
                             ignores_the_object_status_when_off,
@@ -599,5 +727,12 @@ REGISTER_TYPED_TEST_SUITE_P(ObjectStatusControllerTest,
                             repeats_no_outcome_across_a_deactivation,
                             refuses_a_non_positive_object_status_timeout,
                             refuses_to_activate_without_the_object_status,
-                            decides_again_after_a_deactivation);
+                            decides_again_after_a_deactivation,
+                            forwards_a_normalized_goal_as_the_joint_position_of_its_register,
+                            a_joint_goal_preempts_a_normalized_goal,
+                            a_normalized_goal_preempts_a_joint_goal,
+                            cancels_a_normalized_goal_on_request,
+                            clamps_a_normalized_goal_outside_the_unit_span,
+                            rejects_a_normalized_goal_with_no_finite_position,
+                            serves_no_normalized_action_without_a_closed_position);
 } // namespace robotiq_controllers::test

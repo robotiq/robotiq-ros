@@ -20,15 +20,14 @@
        condition on the other. -->
   <depend condition="$ROS_DISTRO != humble">parallel_gripper_controller</depend>
   <depend condition="$ROS_DISTRO == humble">gripper_controllers</depend>
+  <depend>rclcpp_action</depend>
   <depend>realtime_tools</depend>
-  <!-- Headers only, for the SDK's status enums it ships. -->
   <depend>robotiq_driver</depend>
   <depend>robotiq_msgs</depend>
   <depend>std_srvs</depend>
   <depend>tinyxml2_vendor</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
-  <test_depend>rclcpp_action</test_depend>
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 

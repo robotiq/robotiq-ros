@@ -9,6 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(controller_interface REQUIRED)
 find_package(hardware_interface REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(realtime_tools REQUIRED)
 find_package(robotiq_driver REQUIRED)
 find_package(std_srvs REQUIRED)
@@ -26,6 +27,7 @@ endif()
 set(THIS_PACKAGE_INCLUDE_DEPENDS
   controller_interface
   hardware_interface
+  rclcpp_action
   realtime_tools
   robotiq_driver
   robotiq_msgs
@@ -44,18 +46,14 @@ add_library(${PROJECT_NAME} SHARED
 target_include_directories(${PROJECT_NAME}
   PRIVATE
   include
-  # The gripper's status enums come from the SDK, whose headers robotiq_driver
-  # ships. Only the headers: linking the driver would load a second SDK into a
-  # process that has one already, so the target is read for its include
-  # directories alone. Resolves for the installed package and for dev/'s
-  # in-tree alias alike.
-  PUBLIC
-  $<TARGET_PROPERTY:robotiq_driver::robotiq_driver,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(${PROJECT_NAME}
+  # Carries the SDK. The plugin loader opens the same library: one SDK per process.
+  robotiq_driver::robotiq_driver
   controller_interface::controller_interface
   hardware_interface::hardware_interface
+  rclcpp_action::rclcpp_action
   realtime_tools::realtime_tools
   ${robotiq_msgs_TARGETS}
   ${std_srvs_TARGETS}

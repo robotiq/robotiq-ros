@@ -216,6 +216,36 @@ std::optional<double> goalPosition(const GoalT& goal)
    }
 }
 
+// Keeps a JointState's length, so a goal the base refuses stays refused.
+template <typename GoalT>
+void setGoalPosition(GoalT& goal, double position)
+{
+   if constexpr(std::is_floating_point_v<std::decay_t<decltype(goal.command.position)>>)
+   {
+      goal.command.position = position;
+   }
+   else if(!goal.command.position.empty())
+   {
+      goal.command.position.front() = position;
+   }
+}
+
+template <typename MessageT, typename ConvertT>
+void convertReportedPosition(MessageT& message, ConvertT&& convert)
+{
+   if constexpr(detail::HasJointState<MessageT>::value)
+   {
+      for(double& position : message.state.position)
+      {
+         position = convert(position);
+      }
+   }
+   else
+   {
+      message.position = convert(message.position);
+   }
+}
+
 template <typename ResultT>
 void setResult(ResultT& result, double position, double effort)
 {
