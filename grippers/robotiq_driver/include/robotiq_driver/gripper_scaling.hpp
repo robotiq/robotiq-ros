@@ -46,6 +46,7 @@
 #include <Robotiq/gripper/device_profile.hpp>
 #include <Robotiq/gripper/fault_status.hpp>
 #include <Robotiq/gripper/status.hpp>
+#include <Robotiq/gripper/units.hpp>
 
 namespace robotiq_driver {
 
@@ -136,11 +137,9 @@ registerFromJointPosition(double joint_position, double closed_position)
    return registerFromJointPosition(joint_position, closed_position, Robotiq::profiles::k2F85);
 }
 
-//! An SI speed or force command -> its 0x00..0xFF register (rSP / rFR), as the
-//! fraction of \p maximum it represents. Truncates, as above. Nothing unless
-//! both sides are in range: \p value from zero up, \p maximum above it. The
-//! range excludes NaN and infinity, which no comparison admits.
-[[nodiscard]] inline std::optional<uint8_t> registerFromFractionOf(double value, double maximum)
+// Deprecated since 1.4.0 and removed in the next major release.
+[[deprecated("use Robotiq::units::registerFromSpan, which rounds")]] [[nodiscard]] inline std::optional<uint8_t>
+registerFromFractionOf(double value, double maximum)
 {
    constexpr double kLargest = std::numeric_limits<double>::max();
    const bool in_range = value >= 0.0 && value <= kLargest && maximum > 0.0 && maximum <= kLargest;
@@ -151,11 +150,13 @@ registerFromJointPosition(double joint_position, double closed_position)
    return static_cast<uint8_t>(std::min(value / maximum, 1.0) * 0xFF);
 }
 
-inline constexpr double kAmperesPerCurrentCount = 0.010;
+[[deprecated("use Robotiq::units::motorCurrentFromRegister")]] inline constexpr double kAmperesPerCurrentCount =
+   Robotiq::units::kAmperesPerRegisterStep;
 
-[[nodiscard]] inline constexpr double motorCurrentFromRegister(uint8_t register_value)
+[[deprecated("use Robotiq::units::motorCurrentFromRegister")]] [[nodiscard]] inline constexpr double
+motorCurrentFromRegister(uint8_t register_value)
 {
-   return kAmperesPerCurrentCount * register_value;
+   return Robotiq::units::motorCurrentFromRegister(register_value);
 }
 
 // gFLT alone: the fault byte's high nibble is kFLT, a fault of the controller

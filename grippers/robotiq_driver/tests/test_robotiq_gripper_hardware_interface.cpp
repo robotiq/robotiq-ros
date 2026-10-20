@@ -577,8 +577,12 @@ public:
    void requestRecovery() { setCommand(kReactivateGripperGpio, kReactivateCmdInterface, 1.0); }
    void commandPosition(double position) { setCommand(joint(), hardware_interface::HW_IF_POSITION, position); }
    void commandSpeed(double speed) { setCommand(joint(), kMaxVelocityInterface, speed); }
+   void commandForce(double force) { setCommand(joint(), kMaxEffortInterface, force); }
    uint8_t commandedPositionRegister() const { return gripper_->getCommand().positionRequest; }
    uint8_t commandedSpeedRegister() const { return gripper_->getCommand().speed; }
+   uint8_t commandedForceRegister() const { return gripper_->getCommand().force; }
+   double maxSpeed() const { return parameters_.max_speed; }
+   double maxForce() const { return parameters_.max_force; }
    bool recoveryInFlight() const { return recovery_.valid(); }
    bool recoveryHasFinished() const
    {
@@ -705,6 +709,38 @@ TEST(TestRobotiqGripperHardwareInterface, AnUnmappableSpeedKeepsThePreviousOne)
    EXPECT_EQ(hardware_interface::return_type::OK, gripper.write(rclcpp::Time{0}, rclcpp::Duration::from_seconds(0.01)));
    EXPECT_EQ(speed, gripper.commandedSpeedRegister()) << "a NaN speed reached the gripper as a register";
    EXPECT_NE(position, gripper.commandedPositionRegister()) << "the position command stopped following";
+
+   EXPECT_EQ(CallbackReturn::SUCCESS, gripper.on_deactivate(state));
+   EXPECT_EQ(CallbackReturn::SUCCESS, gripper.on_cleanup(state));
+}
+
+/**
+ * Speed and force are written in SI and scale linearly over
+ * gripper_max_speed / gripper_max_force, rounded to the nearest register.
+ * Half scale lands on 128 rather than 127: the conversion the SDK owns
+ * rounds where the driver's own used to truncate.
+ */
+TEST(TestRobotiqGripperHardwareInterface, SpeedAndForceScaleOverTheirFullScale)
+{
+   RecoveringGripper gripper;
+   const rclcpp_lifecycle::State state;
+   using CallbackReturn = RobotiqGripperHardwareInterface::CallbackReturn;
+
+   ASSERT_EQ(CallbackReturn::SUCCESS, gripper.on_configure(state));
+   ASSERT_EQ(CallbackReturn::SUCCESS, gripper.on_activate(state));
+
+   gripper.commandPosition(0.0);
+   gripper.commandSpeed(gripper.maxSpeed() / 2.0);
+   gripper.commandForce(gripper.maxForce() / 2.0);
+   ASSERT_EQ(hardware_interface::return_type::OK, gripper.write(rclcpp::Time{0}, rclcpp::Duration::from_seconds(0.01)));
+   EXPECT_EQ(128, gripper.commandedSpeedRegister());
+   EXPECT_EQ(128, gripper.commandedForceRegister());
+
+   gripper.commandSpeed(2.0 * gripper.maxSpeed());
+   gripper.commandForce(2.0 * gripper.maxForce());
+   ASSERT_EQ(hardware_interface::return_type::OK, gripper.write(rclcpp::Time{0}, rclcpp::Duration::from_seconds(0.01)));
+   EXPECT_EQ(255, gripper.commandedSpeedRegister()) << "a speed beyond full scale wrapped instead of saturating";
+   EXPECT_EQ(255, gripper.commandedForceRegister()) << "a force beyond full scale wrapped instead of saturating";
 
    EXPECT_EQ(CallbackReturn::SUCCESS, gripper.on_deactivate(state));
    EXPECT_EQ(CallbackReturn::SUCCESS, gripper.on_cleanup(state));

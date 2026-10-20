@@ -49,6 +49,7 @@
 
 #include <Robotiq/gripper/fake/gripper_factory.hpp>
 #include <Robotiq/gripper/to_string.hpp>
+#include <Robotiq/gripper/units.hpp>
 #include <Robotiq/gripper/wait.hpp>
 
 #include <hardware_interface/actuator_interface.hpp>
@@ -557,7 +558,7 @@ hardware_interface::CallbackReturn RobotiqGripperHardwareInterface::on_activate(
    // any hold target derived from it, describe where the fingers actually are.
    gripper_position_ = jointPositionFromRegister(status.position, parameters_.closed_position, parameters_.profile);
    gripper_velocity_ = 0.0;
-   gripper_motor_current_ = motorCurrentFromRegister(status.current);
+   gripper_motor_current_ = Robotiq::units::motorCurrentFromRegister(status.current);
    gripper_object_status_ = static_cast<double>(status.gripperStatus.objectDetection());
    gripper_fault_ = {gripperFaultFromRegister(status.faultStatus),
                      gripperFaultSeverityFromRegister(status.faultStatus)};
@@ -623,7 +624,7 @@ hardware_interface::return_type RobotiqGripperHardwareInterface::read(const rclc
    // The status block carries no velocity — the gripper reports position and
    // motor current only.
    gripper_velocity_ = 0.0;
-   gripper_motor_current_ = motorCurrentFromRegister(status.current);
+   gripper_motor_current_ = Robotiq::units::motorCurrentFromRegister(status.current);
    gripper_object_status_ = objectStatusValue(status.gripperStatus.objectDetection(), connection);
    gripper_fault_ = {gripperFaultFromRegister(status.faultStatus),
                      gripperFaultSeverityFromRegister(status.faultStatus)};
@@ -722,8 +723,8 @@ hardware_interface::return_type RobotiqGripperHardwareInterface::write(const rcl
 
    const std::optional<uint8_t> position =
       registerFromJointPosition(gripper_position_command_, parameters_.closed_position, parameters_.profile);
-   const std::optional<uint8_t> speed = registerFromFractionOf(gripper_speed_, parameters_.max_speed);
-   const std::optional<uint8_t> force = registerFromFractionOf(gripper_force_, parameters_.max_force);
+   const std::optional<uint8_t> speed = Robotiq::units::registerFromSpan(gripper_speed_, 0.0, parameters_.max_speed);
+   const std::optional<uint8_t> force = Robotiq::units::registerFromSpan(gripper_force_, 0.0, parameters_.max_force);
    if(!position || !speed || !force)
    {
       RCLCPP_ERROR_THROTTLE(kLogger,
