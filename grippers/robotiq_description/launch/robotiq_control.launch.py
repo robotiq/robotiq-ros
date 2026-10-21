@@ -197,6 +197,14 @@ GRIPPER_STALL_VELOCITY_THRESHOLDS = {
     "hand_e_c10": "0.002",
 }
 
+# The RViz config under rviz/ that frames each gripper.
+GRIPPER_RVIZ_CONFIGS = {
+    "2f_85": "view_urdf.rviz",
+    "2f_140": "view_urdf_2f_140.rviz",
+    "hand_e": "view_urdf.rviz",
+    "hand_e_c10": "view_urdf.rviz",
+}
+
 
 # The driver's gripper_closed_position and gripper_profile for the joint, read
 # from the description the launch loads, for the Humble gripper controller,
@@ -301,9 +309,6 @@ def generate_launch_description():
     default_model_path = os.path.join(
         description_pkg_share, "urdf", "robotiq_gripper.urdf.xacro"
     )
-    default_rviz_config_path = os.path.join(
-        description_pkg_share, "rviz", "view_urdf.rviz"
-    )
 
     args = []
     args.append(
@@ -311,13 +316,6 @@ def generate_launch_description():
             name="model",
             default_value=default_model_path,
             description="Absolute path to gripper URDF file",
-        )
-    )
-    args.append(
-        launch.actions.DeclareLaunchArgument(
-            name="rvizconfig",
-            default_value=default_rviz_config_path,
-            description="Absolute path to rviz config file",
         )
     )
     args.append(
@@ -339,6 +337,21 @@ def generate_launch_description():
             default_value="0.050",
             choices=["0.050", "0.100"],
             description="Hand-E total opening in metres; the other models ignore it",
+        )
+    )
+    args.append(
+        launch.actions.DeclareLaunchArgument(
+            name="rvizconfig",
+            default_value=PathJoinSubstitution(
+                [
+                    description_pkg_share,
+                    "rviz",
+                    PerGripperModel(
+                        GRIPPER_RVIZ_CONFIGS, LaunchConfiguration("gripper_model")
+                    ),
+                ]
+            ),
+            description="Absolute path to rviz config file; defaults from gripper_model",
         )
     )
     args.append(
