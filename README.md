@@ -493,17 +493,17 @@ A fault can also be cleared without cycling the lifecycle state, by writing to t
 
 ### RViz
 
-Pass `launch_rviz:=true` to open RViz with the gripper model (default config `robotiq_description/rviz/view_urdf.rviz`); the joints update live from `joint_state_broadcaster`. Override with `rvizconfig:=/path/to/your.rviz`. Args combine — e.g. `use_fake_hardware:=true launch_rviz:=true` to visualize without hardware. Running via `docker/run.sh` already forwards X11, so the RViz window displays from inside the container (if it can't connect to the display, run `xhost +local:root` on the host once).
+Pass `launch_rviz:=true` to open RViz with the gripper model (default config from `gripper_model`: `robotiq_description/rviz/view_urdf_2f_140.rviz` for the 2F-140, `view_urdf.rviz` otherwise); the joints update live from `joint_state_broadcaster`. Override with `rvizconfig:=/path/to/your.rviz`. Args combine — e.g. `use_fake_hardware:=true launch_rviz:=true` to visualize without hardware. Running via `docker/run.sh` already forwards X11, so the RViz window displays from inside the container (if it can't connect to the display, run `xhost +local:root` on the host once).
 
 #### Visualizing the model without hardware
 
 To inspect the model in RViz with no gripper attached (no `ros2_control`), use the visualization-only launch — `robot_state_publisher`, RViz, and a `joint_state_publisher_gui` slider:
 
 ```bash
-ros2 launch robotiq_description view_gripper.launch.py
+ros2 launch robotiq_description view_gripper.launch.py gripper_model:=2f_85  # or 2f_140, hand_e, hand_e_c10
 ```
 
-Drag the `robotiq_85_left_knuckle_joint` slider; the five finger joints follow it via URDF `mimic` (≈ `0.0` open → ~`0.8` closed).
+`gripper_model` picks the description and the RViz view; `model:=` and `rvizconfig:=` still override them. On the 2F-85, drag the `robotiq_85_left_knuckle_joint` slider; the five finger joints follow it via URDF `mimic` (≈ `0.0` open → ~`0.8` closed).
 
 Goal-based commanding also works without hardware: `robotiq_control.launch.py use_fake_hardware:=true launch_rviz:=true` brings up all four controllers against `mock_components/GenericSystem`, and `gripper_cmd` goals drive the model — the five finger joints follow the knuckle via URDF `mimic`, exactly as on hardware. Use the slider above when you want to pose the model by hand instead.
 
