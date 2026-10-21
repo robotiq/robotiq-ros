@@ -19,3 +19,4 @@ Forthcoming
   * The pad frames, ``left_inner_finger_pad`` and ``right_inner_finger_pad``, keep their orientation and move to the centre of the pad's contact face.
   * ``urdf/robotiq_2f_140.xacro`` keeps only the ``finger_links``, ``finger_joint`` and ``right_outer_knuckle_joint`` macros, which a ``robotiq_2f_140_macro.urdf.xacro`` copied from 1.3 calls; the per-link macros are gone. The mimic joints turn the other way, and their limits follow ``finger_joint``'s.
   * Deprecated, and removed in the next major release: the ``stroke`` argument of ``finger_links``, and the 1.3 meshes under ``meshes/visual/2f_140`` and ``meshes/collision/2f_140`` that the description no longer uses. ``meshes/collision/2f_140/robotiq_2f_140_base_link.stl`` now holds the new base's hull.
+* ``view_gripper.launch.py`` takes ``gripper_model``, and both launches pick the RViz view by it.
