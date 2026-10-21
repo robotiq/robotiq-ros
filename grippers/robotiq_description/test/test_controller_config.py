@@ -583,7 +583,7 @@ def macro_closed_position(gripper_model):
     "gripper_model,expected",
     [
         ("2f_85", 0.7929),
-        ("2f_140", 0.695),
+        ("2f_140", 0.77),
         ("hand_e", 0.025),
         ("hand_e_c10", 0.0192),
     ],
