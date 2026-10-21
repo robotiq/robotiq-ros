@@ -46,8 +46,10 @@ import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import numpy as np
 import pytest
 import yaml
+from scipy.spatial.transform import Rotation
 from ament_index_python.packages import get_package_share_directory
 
 PKG_DIR = Path(__file__).parents[1]
@@ -403,6 +405,142 @@ def test_the_hand_e_c10_followers_are_declared_for_gazebo_only(tmp_path):
     )
     ros2_control = ET.fromstring(result.stdout).find("ros2_control")
     assert followers <= joints_of(ros2_control)
+
+
+def _link_pose(robot, link, driven_joint, position):
+    joints = {
+        joint.find("child").get("link"): joint for joint in robot.findall("joint")
+    }
+    pose = np.eye(4)
+    while link in joints:
+        joint = joints[link]
+        origin = joint.find("origin")
+        step = np.eye(4)
+        # URDF's rpy turns about the fixed axes, scipy's lowercase "xyz".
+        step[:3, :3] = Rotation.from_euler(
+            "xyz", [float(v) for v in origin.get("rpy", "0 0 0").split()]
+        ).as_matrix()
+        step[:3, 3] = list(map(float, origin.get("xyz", "0 0 0").split()))
+        if joint.get("type") == "revolute":
+            mimic = joint.find("mimic")
+            angle = position
+            if joint.get("name") != driven_joint:
+                assert (
+                    mimic is not None
+                ), f"{joint.get('name')} is neither driven nor a mimic"
+                angle = position * float(mimic.get("multiplier", "1")) + float(
+                    mimic.get("offset", "0")
+                )
+            turn = np.eye(4)
+            axis = np.array([float(v) for v in joint.find("axis").get("xyz").split()])
+            turn[:3, :3] = Rotation.from_rotvec(axis * angle).as_matrix()
+            step = step @ turn
+        pose = step @ pose
+        link = joint.find("parent").get("link")
+    return pose
+
+
+@pytest.fixture(scope="module")
+def robot_2f_140():
+    result = subprocess.run(
+        [
+            "xacro",
+            str(URDF_DIR / "robotiq_2f_140_gripper.urdf.xacro"),
+            "use_fake_hardware:=false",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return ET.fromstring(result.stdout)
+
+
+def _pad_poses(robot, position):
+    base = np.linalg.inv(
+        _link_pose(robot, "robotiq_140_base_link", "finger_joint", position)
+    )
+    return (
+        base @ _link_pose(robot, "left_inner_finger_pad", "finger_joint", position),
+        base @ _link_pose(robot, "right_inner_finger_pad", "finger_joint", position),
+    )
+
+
+@requires_xacro
+def test_the_2f_140_pads_span_the_stroke_up_to_the_driver_s_closed_position(
+    robot_2f_140,
+):
+    robot = robot_2f_140
+    closed = float(
+        hardware_param(robot.find("ros2_control"), "gripper_closed_position")
+    )
+    upper = float(robot.find("joint[@name='finger_joint']/limit").get("upper"))
+
+    # The pad frames sit on the contact faces, z pointing away from the other pad.
+    def pad_gap(position):
+        left, right = _pad_poses(robot, position)
+        return np.dot(right[:3, 3] - left[:3, 3], -left[:3, 2])
+
+    assert closed <= upper
+    assert pad_gap(0.0) == pytest.approx(0.140, abs=0.001)
+    # The closed position is fitted to a real 2F-140, whose pads meet a little
+    # later in the stroke than the model's.
+    assert -0.0015 < pad_gap(closed) <= 0.0
+
+
+@requires_xacro
+@pytest.mark.parametrize("position", [0.0, 0.385, 0.77])
+def test_the_2f_140_pads_mirror_each_other(robot_2f_140, position):
+    left, right = _pad_poses(robot_2f_140, position)
+    assert right[:3, 3] == pytest.approx(left[:3, 3] * [1, -1, 1], abs=1e-9)
+    assert right[:3, :3] == pytest.approx(np.diag([-1, -1, 1]) @ left[:3, :3], abs=1e-9)
+
+
+# How robotiq_2f_140_macro.urdf.xacro called the finger macros in 1.3.
+FINGERS_1_3_CALL = """<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="fingers_1_3">
+    <xacro:include filename="{include}" />
+    <link name="robotiq_140_base_link" />
+    <xacro:finger_links prefix="" fingerprefix="left" stroke="140"/>
+    <xacro:finger_links prefix="" fingerprefix="right" stroke="140"/>
+    <xacro:finger_joint prefix=""/>
+    <xacro:right_outer_knuckle_joint prefix=""/>
+</robot>
+"""
+
+
+@requires_xacro
+def test_the_2f_140_finger_macros_take_a_1_3_call_and_warn(tmp_path):
+    description = tmp_path / "fingers.urdf.xacro"
+    description.write_text(
+        FINGERS_1_3_CALL.format(include=URDF_DIR / "robotiq_2f_140.xacro")
+    )
+    result = subprocess.run(
+        ["xacro", str(description)], capture_output=True, text=True, check=True
+    )
+    assert "finger_joint" in joints_of(ET.fromstring(result.stdout))
+    assert "stroke argument of finger_links is deprecated" in result.stderr
+
+
+# The 2F-140 meshes 1.1 to 1.3 installed under names the description no longer
+# uses, which descriptions copied from those releases may still point at.
+MESHES_1_3_2F_140 = [
+    f"meshes/{kind}/2f_140/robotiq_2f_140_{part}.stl"
+    for kind in ("visual", "collision")
+    for part in (
+        "base_link",
+        "coupling",
+        "inner_finger",
+        "inner_knuckle",
+        "outer_finger",
+        "outer_knuckle",
+    )
+]
+
+
+def test_every_2f_140_mesh_1_3_installed_is_still_shipped():
+    # CMakeLists.txt installs meshes/ as it is, so the source tree is what ships.
+    missing = [name for name in MESHES_1_3_2F_140 if not (PKG_DIR / name).is_file()]
+    assert missing == []
 
 
 @requires_xacro

@@ -21,7 +21,7 @@
         gripper_force_multiplier:=0.5
         gripper_max_speed:=0.250
         gripper_max_force:=125.0
-        gripper_closed_position:=0.695">
+        gripper_closed_position:=0.77">
 
         <!-- PickNik's main Isaac names. -->
         <xacro:if value="${sim_isaac or isaac_joint_commands != '' or isaac_joint_states != ''}">
