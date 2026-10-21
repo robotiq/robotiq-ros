@@ -86,6 +86,8 @@ struct Config
    double stall_timeout = 0.0;
    std::optional<double> closed_position = kClosedPosition;
    std::optional<std::string> profile;
+   std::optional<double> max_speed;
+   std::optional<double> max_force;
 
    // The driver's configuration.
    static Config driver() { return Config{}.useObjectStatus().exportJointObjectStatus().allowStalling(); }
@@ -120,6 +122,12 @@ struct Config
       profile = name;
       return *this;
    }
+   Config& withFullScales(double speed, double force)
+   {
+      max_speed = speed;
+      max_force = force;
+      return *this;
+   }
 
    // The driver parameters the description's hardware block carries.
    std::string hardwareParameters() const
@@ -132,6 +140,14 @@ struct Config
       if(profile)
       {
          parameters += R"(<param name="gripper_profile">)" + *profile + "</param>";
+      }
+      if(max_speed)
+      {
+         parameters += R"(<param name="gripper_max_speed">)" + std::to_string(*max_speed) + "</param>";
+      }
+      if(max_force)
+      {
+         parameters += R"(<param name="gripper_max_force">)" + std::to_string(*max_force) + "</param>";
       }
       return parameters;
    }
@@ -273,12 +289,14 @@ protected:
       update();
    }
 
-   void sendNormalizedGoal(double position)
+   void sendNormalizedGoal(double position) { sendNormalizedGoal(Traits::goal(kJoint, position)); }
+
+   void sendNormalizedGoal(const typename Action::Goal& goal)
    {
       ASSERT_TRUE(normalized_client_->wait_for_action_server(std::chrono::seconds{5}));
       ASSERT_TRUE(client_->wait_for_action_server(std::chrono::seconds{5}));
       const auto previous = controller_->activeGoal();
-      auto goal_future = normalized_client_->async_send_goal(Traits::goal(kJoint, position));
+      auto goal_future = normalized_client_->async_send_goal(goal);
       spinUntil([&] { return goal_future.wait_for(std::chrono::seconds{0}) == std::future_status::ready; });
       ASSERT_EQ(std::future_status::ready, goal_future.wait_for(std::chrono::seconds{0}));
       normalized_goal_handle_ = goal_future.get();
@@ -288,6 +306,15 @@ protected:
       spinUntil(forwarded);
       ASSERT_TRUE(forwarded()) << "the normalized goal never reached gripper_cmd";
       update();
+   }
+
+   bool acceptsNormalizedGoal(const typename Action::Goal& goal)
+   {
+      EXPECT_TRUE(normalized_client_->wait_for_action_server(std::chrono::seconds{5}));
+      auto goal_future = normalized_client_->async_send_goal(goal);
+      spinUntil([&] { return goal_future.wait_for(std::chrono::seconds{0}) == std::future_status::ready; });
+      EXPECT_EQ(std::future_status::ready, goal_future.wait_for(std::chrono::seconds{0}));
+      return goal_future.get() != nullptr;
    }
 
    std::optional<Result> awaitNormalizedResult()
@@ -696,11 +723,7 @@ TYPED_TEST_P(ObjectStatusControllerTest, clamps_a_normalized_goal_outside_the_un
 TYPED_TEST_P(ObjectStatusControllerTest, rejects_a_normalized_goal_with_no_finite_position)
 {
    this->bringUp();
-   ASSERT_TRUE(this->normalized_client_->wait_for_action_server(std::chrono::seconds{5}));
-   auto goal_future = this->normalized_client_->async_send_goal(TypeParam::goal(kJoint, kNaN));
-   this->spinUntil([&] { return goal_future.wait_for(std::chrono::seconds{0}) == std::future_status::ready; });
-   ASSERT_EQ(std::future_status::ready, goal_future.wait_for(std::chrono::seconds{0}));
-   EXPECT_FALSE(goal_future.get());
+   EXPECT_FALSE(this->acceptsNormalizedGoal(TypeParam::goal(kJoint, kNaN)));
 }
 
 TYPED_TEST_P(ObjectStatusControllerTest, serves_no_normalized_action_without_a_closed_position)

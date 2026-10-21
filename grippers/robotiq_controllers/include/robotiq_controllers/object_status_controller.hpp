@@ -31,6 +31,7 @@
 //! parallel_gripper_controller's from Jazzy on, gripper_controllers' on Humble.
 //! Humble EOL: simplify — one base remains, so this can become a plain class.
 //! Also serves normalized_gripper_cmd (0 = open, 1 = closed), forwarded to gripper_cmd.
+//! From Jazzy on, its speed and force run from 0 = slowest, weakest to 1.
 
 #pragma once
 
@@ -126,6 +127,14 @@ public:
       }
       closed_position_ = joint_scale::closedPosition(*this, this->params_.joint);
       profile_ = joint_scale::profile(*this, this->params_.joint);
+      max_speed_ = joint_scale::fullScale(*this,
+                                          this->params_.joint,
+                                          object_status_goal::maxSpeedFromUrdf,
+                                          robotiq_driver::kMaxSpeedDefault);
+      max_force_ = joint_scale::fullScale(*this,
+                                          this->params_.joint,
+                                          object_status_goal::maxForceFromUrdf,
+                                          robotiq_driver::kMaxForceDefault);
       if(use_object_status_ && closed_position_ && !profile_)
       {
          RCLCPP_WARN(this->get_node()->get_logger(),
@@ -217,12 +226,29 @@ private:
       return robotiq_driver::jointPositionFromNormalized(*normalized, *closed_position_, *profile_, sdk_logger_);
    }
 
+   bool speedAndForceAreValid(const typename Action::Goal& goal) const
+   {
+      bool valid = true;
+      compat::visitSpeedAndForce(
+         goal,
+         [&](double speed) { valid = valid && robotiq_driver::speedOrForceFromNormalized(speed, max_speed_); },
+         [&](double force) { valid = valid && robotiq_driver::speedOrForceFromNormalized(force, max_force_); });
+      return valid;
+   }
+
    rclcpp_action::GoalResponse onNormalizedGoal(const typename Action::Goal& goal)
    {
       const std::optional<double> normalized = compat::goalPosition(goal);
       if(!normalized || !std::isfinite(*normalized))
       {
          RCLCPP_ERROR(this->get_node()->get_logger(), "Rejected a %s goal with no finite position.", kNormalizedAction);
+         return rclcpp_action::GoalResponse::REJECT;
+      }
+      if(!speedAndForceAreValid(goal))
+      {
+         RCLCPP_ERROR(this->get_node()->get_logger(),
+                      "Rejected a %s goal with a negative or non-finite speed or force.",
+                      kNormalizedAction);
          return rclcpp_action::GoalResponse::REJECT;
       }
       return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
@@ -258,6 +284,11 @@ private:
       }
       typename Action::Goal joint_goal = *goal->get_goal();
       compat::setGoalPosition(joint_goal, jointPosition(joint_goal).value());
+      // To the values the driver turns into the same rSP and rFR.
+      compat::visitSpeedAndForce(
+         joint_goal,
+         [this](double& speed) { speed = robotiq_driver::speedOrForceFromNormalized(speed, max_speed_).value(); },
+         [this](double& force) { force = robotiq_driver::speedOrForceFromNormalized(force, max_force_).value(); });
 
       typename rclcpp_action::Client<Action>::SendGoalOptions options;
       options.goal_response_callback = [this, goal](typename ForwardedGoalHandle::SharedPtr forwarded) {
@@ -368,6 +399,8 @@ private:
    double object_status_timeout_ = 0.0;
    std::optional<double> closed_position_;
    std::optional<Robotiq::DeviceProfile> profile_;
+   double max_speed_ = robotiq_driver::kMaxSpeedDefault;
+   double max_force_ = robotiq_driver::kMaxForceDefault;
    std::optional<std::reference_wrapper<hardware_interface::LoanedStateInterface>> object_status_;
    RealtimeGoalHandlePtr tracked_goal_;
    object_status_goal::Verdict verdict_;
