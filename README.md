@@ -380,7 +380,7 @@ ros2 action send_goal /robotiq_gripper_controller/gripper_cmd \
   "{command: {position: 0.4, max_effort: 50.0}}"
 ```
 
-`position` is the joint angle in radians (≈ `0.0` open → ~`0.8` closed on a 2F-85), one finger's travel in metres on a Hand-E (`0.0` open → `0.025` closed); on Jazzy/Lyrical `effort` and `velocity` are optional max limits, mapped to the controller's `set_gripper_max_effort` / `set_gripper_max_velocity` interfaces. The driver rounds `position` to the nearest register count; before 1.4.0 it truncated, so the same goal can now land one count higher.
+`position` is the joint angle in radians (≈ `0.0` open → ~`0.8` closed on a 2F-85), one finger's travel in metres on a Hand-E (`0.0` open → `0.025` closed); on Jazzy/Lyrical `effort` and `velocity` are optional max limits, mapped to the controller's `set_gripper_max_effort` / `set_gripper_max_velocity` interfaces. The driver rounds `position`, `velocity` and `effort` to the nearest register count; before 1.4.0 it truncated, so the same goal can now land one count higher.
 
 `effort` sets the gripper's grip threshold, as a fraction of `gripper_max_force` written to rFR. It sets the maximum current at the motor, and does **not** directly control the maximum force the gripper applies: that is also largely influenced by the closing speed. Nothing reads a force out of the gripper, and `motor_current` is not convertible to one.
 

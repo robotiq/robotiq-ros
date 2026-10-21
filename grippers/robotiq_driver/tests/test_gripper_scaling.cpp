@@ -197,14 +197,14 @@ TEST(GripperScaling, FractionOfSpansTheWholeByte)
 {
    EXPECT_EQ(0, registerFromFractionOf(0.0, 0.15));
    EXPECT_EQ(255, registerFromFractionOf(0.15, 0.15));
-   // 0.5 * 0xFF is 127.5, truncated to 127 — see the round-trip test above.
-   EXPECT_EQ(127, registerFromFractionOf(0.075, 0.15));
+   EXPECT_EQ(128, registerFromFractionOf(0.075, 0.15));
+   EXPECT_EQ(127, registerFromFractionOf(0.0749, 0.15));
 }
 
 TEST(GripperScaling, FractionOfSaturatesRatherThanWrapping)
 {
-   // A request beyond full scale must pin at 0xFF; truncating the product
-   // would wrap it to a near-zero speed or force.
+   // A request beyond full scale must pin at 0xFF, not wrap to a near-zero
+   // speed or force.
    EXPECT_EQ(255, registerFromFractionOf(10.0, 0.15));
 }
 
