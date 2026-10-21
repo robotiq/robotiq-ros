@@ -546,7 +546,7 @@ def spawned_controllers(distro, monkeypatch, **launch_arguments):
 # when it sets none. Humble EOL: delete.
 MODEL_PROFILES = {
     "2f_85": "2f_85",
-    "2f_140": "2f_85",
+    "2f_140": "2f_140",
     "hand_e": "hand_e",
     "hand_e_c10": "hand_e_c10",
 }
