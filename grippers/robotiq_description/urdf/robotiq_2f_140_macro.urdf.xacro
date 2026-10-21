@@ -21,7 +21,7 @@
         gripper_force_multiplier:=0.5
         gripper_max_speed:=0.250
         gripper_max_force:=125.0
-        gripper_closed_position:=0.695">
+        gripper_closed_position:=0.77">
 
         <!-- PickNik's names for the topic-based path, released in 1.1.0 and
              deprecated since 1.2.0. sim_isaac keeps its old /isaac_joint_* topic
@@ -64,18 +64,15 @@
 
         <link name="${prefix}robotiq_140_base_link">
         <inertial>
-          <origin xyz="8.625E-08 -4.6583E-06 0.03145" rpy="0 0 0" />
+          <origin xyz="0 0 0.03145" rpy="0 0 0" />
           <mass value="0.22652" />
-          <inertia ixx="0.00020005" ixy="-4.2442E-10" ixz="-2.9069E-10" iyy="0.00017832" iyz="-3.4402E-08" izz="0.00013478" />
+          <inertia ixx="0.00020005" ixy="0" ixz="0" iyy="0.00017832" iyz="0" izz="0.00013478" />
         </inertial>
         <visual>
           <origin xyz="0 0 0" rpy="0 0 0" />
           <geometry>
-            <mesh filename="package://robotiq_description/meshes/visual/2f_140/robotiq_2f_140_base_link.stl" />
+            <mesh filename="package://robotiq_description/meshes/visual/2f_140/robotiq_2f_140_base_link.dae" />
           </geometry>
-          <material name="">
-            <color rgba="0.1 0.1 0.1 1" />
-          </material>
         </visual>
         <collision>
           <origin xyz="0 0 0" rpy="0 0 0" />
@@ -92,8 +89,8 @@
 
       <!-- Include the finger xacros and run them -->
       <xacro:include filename="$(find robotiq_description)/urdf/robotiq_2f_140.xacro" />
-      <xacro:finger_links prefix="${prefix}" fingerprefix="left" stroke="140"/>
-      <xacro:finger_links prefix="${prefix}" fingerprefix="right" stroke="140"/>
+      <xacro:finger_links prefix="${prefix}" fingerprefix="left"/>
+      <xacro:finger_links prefix="${prefix}" fingerprefix="right"/>
       <xacro:finger_joint prefix="${prefix}"/>
       <xacro:right_outer_knuckle_joint prefix="${prefix}"/>
     </xacro:macro>
