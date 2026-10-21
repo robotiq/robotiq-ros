@@ -167,18 +167,11 @@ registerFromJointPosition(double joint_position, double closed_position)
 }
 
 //! An SI speed or force command -> its 0x00..0xFF register (rSP / rFR), as the
-//! fraction of \p maximum it represents. Truncates, as above. Nothing unless
-//! both sides are in range: \p value from zero up, \p maximum above it. The
-//! range excludes NaN and infinity, which no comparison admits.
+//! fraction of \p maximum it represents, rounded. Nothing unless both sides
+//! are finite: \p value from zero up, \p maximum above it.
 [[nodiscard]] inline std::optional<uint8_t> registerFromFractionOf(double value, double maximum)
 {
-   constexpr double kLargest = std::numeric_limits<double>::max();
-   const bool in_range = value >= 0.0 && value <= kLargest && maximum > 0.0 && maximum <= kLargest;
-   if(!in_range)
-   {
-      return std::nullopt;
-   }
-   return static_cast<uint8_t>(std::min(value / maximum, 1.0) * 0xFF);
+   return Robotiq::units::registerFromSpan(value, 0.0, maximum);
 }
 
 inline constexpr double kAmperesPerCurrentCount = 0.010;
