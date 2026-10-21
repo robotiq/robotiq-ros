@@ -523,7 +523,7 @@ def spawned_controllers(distro, monkeypatch, **launch_arguments):
 
 # The gripper_profile each model's description hands the driver, the 2F-85's
 # when it sets none. Humble EOL: delete.
-MODEL_PROFILES = {"2f_85": "2f_85", "2f_140": "2f_85", "hand_e": "hand_e"}
+MODEL_PROFILES = {"2f_85": "2f_85", "2f_140": "2f_140", "hand_e": "hand_e"}
 
 
 # Humble EOL: delete.

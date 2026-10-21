@@ -435,7 +435,7 @@ None of the four beyond `position` and `velocity` are `ros2_control` standard in
 | Parameter | Default | Description |
 |---|---|---|
 | `gripper_closed_position` | *required* | Joint position at a fully closed gripper, in radians on the 2F models and metres on the Hand-E — the scale of the linear position mapping |
-| `gripper_profile` | `2f_85` | The SDK device profile whose register counts span the position mapping: `2f_85` or `hand_e`. Every shipped description sets it, the 2F-140's to `2f_85` until it has its own. Leaving it out keeps the 2F-85's and logs a deprecation warning, as it is required from the next major release; an unknown name fails the component |
+| `gripper_profile` | `2f_85` | The SDK device profile whose register counts span the position mapping: `2f_85`, `2f_140` or `hand_e`. Every shipped description sets it. Leaving it out keeps the 2F-85's and logs a deprecation warning, as it is required from the next major release; an unknown name fails the component |
 | `COM_port` | `/dev/ttyUSB0` | Serial port |
 | `baudrate` | `115200` | Must match the gripper's persisted setting, which is why it is also a launch argument, `baudrate:=<rate>`. Rejected outside 1..1000000. Most units stay at 115200; the gripper's own rate is changed in the Robotiq User Interface (*Modbus RTU Parameters*), not from here, and the gripper must be rebooted afterwards |
 | `timeout` | `0.5` | Per-transaction serial timeout, in seconds |

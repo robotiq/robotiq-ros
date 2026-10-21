@@ -245,7 +245,7 @@ def test_baudrate_reaches_the_driver(model):
     "model,profile",
     [
         ("robotiq_2f_85_gripper.urdf.xacro", "2f_85"),
-        ("robotiq_2f_140_gripper.urdf.xacro", "2f_85"),
+        ("robotiq_2f_140_gripper.urdf.xacro", "2f_140"),
         ("robotiq_hand_e_gripper.urdf.xacro", "hand_e"),
     ],
 )
