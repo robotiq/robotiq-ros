@@ -191,6 +191,8 @@ def test_mock_publishes_the_same_joints_as_hardware(model, joint):
 def test_every_plugin_gets_the_joint_scale(model, use_fake_hardware, extra_args):
     ros2_control = expand(model, use_fake_hardware, *extra_args)
     assert hardware_param(ros2_control, "gripper_closed_position") is not None
+    assert hardware_param(ros2_control, "gripper_max_speed") is not None
+    assert hardware_param(ros2_control, "gripper_max_force") is not None
 
 
 @requires_xacro

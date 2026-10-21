@@ -38,6 +38,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <robotiq_controllers/object_status_goal.hpp>
+#include <robotiq_driver/hardware_parameters.hpp>
 
 #include "controller_test_compat.hpp"
 #include "gripper_urdf.hpp"
@@ -305,6 +306,35 @@ TEST(ProfileFromUrdf, FindsNothingInANameTheDriverRejects)
    EXPECT_FALSE(profileFromUrdf(
       robotiq_controllers::test::gripperUrdf("finger_joint", R"(<param name="gripper_profile">hand-e</param>)"),
       "finger_joint"));
+}
+
+TEST(FullScaleFromUrdf, ReadsTheDriverParametersOfTheJointsHardware)
+{
+   const std::string urdf = robotiq_controllers::test::gripperUrdf(
+      "finger_joint",
+      R"(<param name="gripper_max_speed">0.075</param><param name="gripper_max_force">185</param>)");
+   EXPECT_DOUBLE_EQ(0.075, maxSpeedFromUrdf(urdf, "finger_joint"));
+   EXPECT_DOUBLE_EQ(185.0, maxForceFromUrdf(urdf, "finger_joint"));
+}
+
+TEST(FullScaleFromUrdf, DefaultsLikeTheDriverWithoutTheParameters)
+{
+   const std::string urdf = robotiq_controllers::test::gripperUrdf("finger_joint", 0.695);
+   EXPECT_DOUBLE_EQ(robotiq_driver::kMaxSpeedDefault, maxSpeedFromUrdf(urdf, "finger_joint"));
+   EXPECT_DOUBLE_EQ(robotiq_driver::kMaxForceDefault, maxForceFromUrdf(urdf, "finger_joint"));
+}
+
+TEST(FullScaleFromUrdf, DefaultsLikeTheDriverOnAValueItRejects)
+{
+   for(const char* rejected : {"0", "-0.1", "nan", "inf", "fast"})
+   {
+      const std::string urdf = robotiq_controllers::test::gripperUrdf(
+         "finger_joint",
+         std::string(R"(<param name="gripper_max_speed">)") + rejected + R"(</param><param name="gripper_max_force">)"
+            + rejected + "</param>");
+      EXPECT_DOUBLE_EQ(robotiq_driver::kMaxSpeedDefault, maxSpeedFromUrdf(urdf, "finger_joint")) << rejected;
+      EXPECT_DOUBLE_EQ(robotiq_driver::kMaxForceDefault, maxForceFromUrdf(urdf, "finger_joint")) << rejected;
+   }
 }
 
 TEST(InterfaceName, joins_the_joint_and_the_field)

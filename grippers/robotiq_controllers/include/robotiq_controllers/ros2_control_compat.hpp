@@ -230,6 +230,27 @@ void setGoalPosition(GoalT& goal, double position)
    }
 }
 
+// Calls the visitors on the speed and force the goal carries: from Jazzy on,
+// the first of each field. Humble's controller cannot command either, so
+// there none.
+template <typename GoalT, typename VisitSpeedT, typename VisitForceT>
+void visitSpeedAndForce(GoalT& goal,
+                        [[maybe_unused]] VisitSpeedT&& visit_speed,
+                        [[maybe_unused]] VisitForceT&& visit_force)
+{
+   if constexpr(!std::is_floating_point_v<std::decay_t<decltype(goal.command.position)>>)
+   {
+      if(!goal.command.velocity.empty())
+      {
+         visit_speed(goal.command.velocity.front());
+      }
+      if(!goal.command.effort.empty())
+      {
+         visit_force(goal.command.effort.front());
+      }
+   }
+}
+
 template <typename MessageT, typename ConvertT>
 void convertReportedPosition(MessageT& message, ConvertT&& convert)
 {
