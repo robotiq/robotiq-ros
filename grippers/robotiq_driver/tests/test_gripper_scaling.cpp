@@ -213,6 +213,39 @@ TEST(GripperScaling, whenTheMaximumIsNearZero_theRegisterIsTheMaxAllowedValue)
    EXPECT_EQ(255, registerFromFractionOf(0.15, std::numeric_limits<double>::denorm_min()));
 }
 
+TEST(GripperScaling, ANormalizedSpeedOrForceCommandsItsRegister)
+{
+   for(const double maximum : {0.150, 0.075, 235.0, 185.0, 0.1})
+   {
+      for(int count = 0; count <= 255; ++count)
+      {
+         const std::optional<double> value = speedOrForceFromNormalized(count / 255.0, maximum);
+         ASSERT_TRUE(value.has_value());
+         EXPECT_EQ(count, registerFromFractionOf(*value, maximum)) << "maximum " << maximum;
+      }
+   }
+}
+
+TEST(GripperScaling, ANormalizedSpeedOrForceRoundsToTheNearestRegister)
+{
+   EXPECT_EQ(128, registerFromFractionOf(speedOrForceFromNormalized(0.5, 0.15).value(), 0.15));
+}
+
+TEST(GripperScaling, ANormalizedSpeedOrForceAboveOneSaturates)
+{
+   EXPECT_DOUBLE_EQ(0.15, speedOrForceFromNormalized(1.5, 0.15).value());
+}
+
+TEST(GripperScaling, ANormalizedSpeedOrForceOutsideTheRangeCommandsNothing)
+{
+   EXPECT_FALSE(speedOrForceFromNormalized(-0.1, 0.15).has_value());
+   EXPECT_FALSE(speedOrForceFromNormalized(std::numeric_limits<double>::quiet_NaN(), 0.15).has_value());
+   EXPECT_FALSE(speedOrForceFromNormalized(std::numeric_limits<double>::infinity(), 0.15).has_value());
+   EXPECT_FALSE(speedOrForceFromNormalized(0.5, 0.0).has_value());
+   EXPECT_FALSE(speedOrForceFromNormalized(0.5, -0.15).has_value());
+   EXPECT_FALSE(speedOrForceFromNormalized(0.5, std::numeric_limits<double>::quiet_NaN()).has_value());
+}
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 TEST(GripperScaling, TheDeprecatedNamesKeepThe2F85Band)

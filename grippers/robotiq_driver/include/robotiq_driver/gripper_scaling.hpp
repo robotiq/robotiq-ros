@@ -174,6 +174,26 @@ registerFromJointPosition(double joint_position, double closed_position)
    return Robotiq::units::registerFromSpan(value, 0.0, maximum);
 }
 
+//! Whether registerFromFractionOf can take \p maximum as its full scale.
+[[nodiscard]] inline bool isValidFullScale(double maximum)
+{
+   return std::isfinite(maximum) && maximum > 0.0;
+}
+
+//! Normalized speed or force (0 = register 0x00, the slowest or weakest, .. 1 =
+//! 0xFF) -> the value registerFromFractionOf maps to the same register for
+//! \p maximum. Above 1 saturates. Nothing for a negative or non-finite
+//! \p normalized, or an invalid \p maximum.
+[[nodiscard]] inline std::optional<double> speedOrForceFromNormalized(double normalized, double maximum)
+{
+   const std::optional<uint8_t> registerValue = Robotiq::units::registerFromSpan(normalized, 0.0, 1.0);
+   if(!registerValue || !isValidFullScale(maximum))
+   {
+      return std::nullopt;
+   }
+   return maximum * *registerValue / 255.0;
+}
+
 inline constexpr double kAmperesPerCurrentCount = 0.010;
 
 [[nodiscard]] inline constexpr double motorCurrentFromRegister(uint8_t register_value)
