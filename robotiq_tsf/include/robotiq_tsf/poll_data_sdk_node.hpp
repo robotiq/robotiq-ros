@@ -30,7 +30,7 @@
 
 // SDK-backed ROS 2 wrapper for the Robotiq TSF tactile sensor.
 //
-// This node owns a RobotiqTactileSensor (from extern/tactile_sensors/sdk_cpp)
+// This node owns a RobotiqTactileSensor (from the tactile sensors SDK)
 // and republishes the SDK's Fingers callback onto the same topics and message
 // types as the legacy PollData.cpp node. The USB / packet / parsing logic lives
 // in the SDK — the node contains only the bridge into ROS + the AHRS fusion.
@@ -54,7 +54,7 @@
 #include "robotiq_tsf/orientation_filter.hpp" // OrientationFilter (by-value array member)
 #include "robotiq_tsf/srv/tactile_sensors.hpp"
 
-// Defined by the SDK (extern/tactile_sensors/sdk_cpp); forward-declared here so
+// Defined by the tactile sensors SDK; forward-declared here so
 // this header doesn't pull in libserialport. The node's out-of-line destructor
 // keeps the unique_ptr happy with the incomplete type.
 class RobotiqTactileSensor;

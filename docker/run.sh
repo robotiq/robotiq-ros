@@ -25,18 +25,20 @@ DISTRO="${ROS_DISTRO:-jazzy}"
 IMG="${IMG:-robotiq_ros2:${DISTRO}}"
 CONTAINER="${CONTAINER:-robotiq_ros2_${DISTRO}}"
 PRODUCT="${1:-gripper}"
-HELPERS="${ROOT}/extern/tactile_sensors/utils/scripts"
-
-# Sensor utilities live in the tactile_sensors submodule; source what's present
-# (absent on gripper-only checkouts without --recurse-submodules).
-for h in ensure_docker set_sensor_permissions find_sensor_devices setup_xhost apply_udev_rule ; do
-  [[ -f "${HELPERS}/${h}.sh" ]] && source "${HELPERS}/${h}.sh"
-done
-
 has() { command -v "$1" >/dev/null 2>&1; }
 log() { echo "[${1}] ${*:2}"; }   # log <tag> <message...>  e.g. log gripper "..."
 
-# The sensor submodule's ensure_docker_image.sh is not used here: it provisions
+# The tactile_sensors helpers are fetched for the sensor only. Without them the
+# container still starts, minus the udev rule, the device mapping and the X11
+# setup (`xhost +local:root` on the host does that by hand).
+if [[ "${PRODUCT}" == "sensor" || "${PRODUCT}" == "both" ]]; then
+  source "${ROOT}/tactile_helpers.sh"
+  for h in ensure_docker set_sensor_permissions find_sensor_devices setup_xhost apply_udev_rule ; do
+    [[ -f "${TACTILE_HELPERS}/${h}.sh" ]] && source "${TACTILE_HELPERS}/${h}.sh"
+  done
+fi
+
+# The tactile_sensors repository's ensure_docker_image.sh is not used here: it provisions
 # the standalone sensor image (pull REMOTE_IMAGE, else build Docker/Dockerfile_UI).
 # Our unified sensor+grippers image is built from this repo's docker/Dockerfile,
 # so we provision it locally below.

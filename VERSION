@@ -7,9 +7,11 @@
 #   grippers/robotiq_controllers/package.xml
 #   grippers/robotiq_description/package.xml
 #   grippers/robotiq_driver/package.xml
+#   grippers/robotiq_grippers_sdk_vendor/package.xml
 #   grippers/robotiq_hardware_tests/package.xml
 #   grippers/robotiq_msgs/package.xml
 #   grippers/robotiq_test_support/package.xml
+#   robotiq_tactile_sdk_vendor/package.xml
 #   robotiq_tsf/package.xml
 #
 # Bump with `dev/version.py --set X.Y.Z`, which rewrites this file and every

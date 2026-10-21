@@ -102,8 +102,7 @@ Also check out these community-maintained ROS drivers for Robotiq products.
 
 ## TSF-85
 
-Launch the sensor node (SDK-backed — parses the sensor via the
-`extern/tactile_sensors` submodule, so clone with `--recurse-submodules`):
+Launch the sensor node (SDK-backed: the [tactile sensors SDK](https://github.com/robotiq/tactile_sensors) parses the sensor's packets):
 
 ```bash
 ros2 run robotiq_tsf poll_data_sdk_node
@@ -159,11 +158,7 @@ Descriptions ship for the **2F-85**, the **2F-140** and the **Hand-E**; `robotiq
 
 The Hand-E's `hande_left_finger_joint` is prismatic: that finger's travel in metres, `0.0` open → `0.025` closed, the same direction as the 2F knuckle. The right finger mimics it.
 
-The driver runs on the [Robotiq C++ grippers SDK](https://github.com/Robotiq/grippers), which arrives as
-the `extern/grippers` submodule — so clone with `--recurse-submodules`. The SDK owns the serial link
-and the Modbus exchange (one FC 0x17 transaction per cycle, on its own thread); `robotiq_driver` is
-the `ros2_control` layer above it, and its `read()` / `write()` copy the SDK's process image rather
-than touching the bus.
+The driver runs on the [Robotiq C++ grippers SDK](https://github.com/robotiq/grippers), which the `robotiq_grippers_sdk_vendor` package fetches and builds at a pinned release. The SDK owns the serial link and the Modbus exchange (one FC 0x17 transaction per cycle, on its own thread); `robotiq_driver` is the `ros2_control` layer above it, and its `read()` / `write()` copy the SDK's process image rather than touching the bus.
 
 **Robotiq maintains this driver.** It started from PickNik Robotics'
 [`ros2_robotiq_gripper`](https://github.com/PickNikRobotics/ros2_robotiq_gripper) (BSD-3-Clause),
@@ -182,7 +177,7 @@ This repository is the maintained continuation of the PickNik package. Package n
 **Docker (recommended):**
 
 ```bash
-git clone --recurse-submodules https://github.com/robotiq/robotiq-ros.git
+git clone https://github.com/robotiq/robotiq-ros.git
 cd robotiq-ros && ./docker/run.sh gripper
 ```
 
@@ -193,17 +188,14 @@ cd robotiq-ros && ./docker/run.sh gripper
 cd ~/ws/src
 rm -rf ros2_robotiq_gripper        # remove the PickNik clone to prevent duplicate package name failures
 rm -rf serial                      # no longer used: the gripper SDK talks to the port itself
-git clone --recurse-submodules https://github.com/robotiq/robotiq-ros.git
+git clone https://github.com/robotiq/robotiq-ros.git
 cd ~/ws
 rosdep install --from-paths src --ignore-src -y
 rm -rf build install               # clear artifacts built from the PickNik sources
 colcon build
 ```
 
-There is no `vcs import` step any more: the driver's transport comes from the
-`extern/grippers` submodule instead of the external `serial` package, so a
-`--recurse-submodules` clone is the whole dependency story. `rosdep` resolves
-the right gripper action controller for your distro on its own.
+There is no `vcs import` step any more: the driver's transport comes from the grippers SDK instead of the external `serial` package, and `colcon build` fetches the SDK itself, so it needs network access. `rosdep` resolves the right gripper action controller for your distro on its own.
 
 This repository also contains the TSF-85 sensor stack. To build only the gripper packages and their dependencies, replace the last step with:
 
@@ -222,7 +214,7 @@ overrides and xacro arguments work untouched:
 | | PickNik `humble` | This repository on Humble |
 |---|---|---|
 | ROS distro | Humble | Humble |
-| Serial transport | `serial` package, `vcs import`ed | the `extern/grippers` SDK submodule (its own POSIX and Win32 serial transport) |
+| Serial transport | `serial` package, `vcs import`ed | the grippers SDK, built by `robotiq_grippers_sdk_vendor` (its own POSIX and Win32 serial transport) |
 | `robotiq_gripper_controller` type | `position_controllers/GripperActionController` | `robotiq_controllers/GripperCommandController`, the same controller plus `use_object_status` |
 | `gripper_cmd` action type | `control_msgs/action/GripperCommand` | `control_msgs/action/GripperCommand` |
 
@@ -267,7 +259,8 @@ ros2 action send_goal /robotiq_gripper_controller/gripper_cmd \
 
 | Package | Description |
 |---|---|
-| `robotiq_driver` | `ros2_control` hardware interface, over the `extern/grippers` SDK (Modbus RTU on serial) |
+| `robotiq_driver` | `ros2_control` hardware interface, over the grippers SDK (Modbus RTU on serial) |
+| `robotiq_grippers_sdk_vendor` | Builds the grippers SDK at the release the driver is pinned to |
 | `robotiq_msgs` | Messages the driver and controllers publish |
 | `robotiq_test_support` | Shared gtest `main()` for the suites that create nodes |
 | `robotiq_controllers` | Gripper action controller, activation controller, and the status broadcaster |
@@ -537,28 +530,7 @@ CI builds the packages and runs their unit tests on pull requests, once per supp
 
 ## Docker
 
-The `docker/` folder provides scripts to build and run the TSF-85 and 2F grippers inside a container. Clone with submodules to pull in the required utilities:
-
-```bash
-git clone --recurse-submodules https://github.com/robotiq/robotiq-ros.git
-```
-
-If you already cloned without `--recurse-submodules`:
-
-```bash
-git submodule update --init
-```
-
-Two SDKs live under `extern/` as submodules and are built into the image:
-
-| Submodule | Repository | Used by |
-|---|---|---|
-| `extern/tactile_sensors` | [Robotiq/tactile_sensors](https://github.com/Robotiq/tactile_sensors) | `robotiq_tsf`'s `poll_data_sdk_node` |
-| `extern/grippers` | [Robotiq/grippers](https://github.com/Robotiq/grippers) | `robotiq_driver` |
-
-`extern/COLCON_IGNORE` keeps colcon from building either SDK's standalone
-CMake project as a workspace package; the packages that need them compile them
-in-tree.
+The `docker/` folder provides scripts to build and run the TSF-85 and 2F grippers inside a container. The image build fetches both SDKs through their vendor packages, and `run.sh` fetches the tactile sensor's udev and device-discovery scripts from the same [tactile_sensors](https://github.com/robotiq/tactile_sensors) release, so both need network access.
 
 | Script | Description |
 |---|---|
@@ -569,7 +541,7 @@ in-tree.
 
 The `Dockerfile` is a multi-stage build: a `builder` stage compiles the workspace, and a slim `runtime` stage (the default) ships only the built workspace plus runtime deps — no compiler, no colcon/rosdep, no test deps.
 
-Build it directly (the context **must** be the repo root — the Dockerfile `COPY`s `robotiq_tsf/`, `grippers/` and `extern/tactile_sensors/sdk_cpp`):
+Build it directly (the context **must** be the repo root — the Dockerfile `COPY`s `robotiq_tsf/`, `robotiq_tactile_sdk_vendor/` and `grippers/`):
 
 ```bash
 docker build -f docker/Dockerfile -t robotiq_ros2:jazzy .

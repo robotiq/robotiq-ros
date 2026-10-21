@@ -14,26 +14,26 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 
-# Load helper scripts from parent directory
 echo "Loading helper scripts..."
-if [ -f "${PROJECT_ROOT}/extern/tactile_sensors/utils/scripts/apply_udev_rule.sh" ]; then
-    source "${PROJECT_ROOT}/extern/tactile_sensors/utils/scripts/apply_udev_rule.sh"
+source "${PROJECT_ROOT}/tactile_helpers.sh"
+if [ -f "${TACTILE_HELPERS}/apply_udev_rule.sh" ]; then
+    source "${TACTILE_HELPERS}/apply_udev_rule.sh"
     echo -e "${GREEN}✓ Loaded apply_udev_rule.sh${NC}"
 else
     echo -e "${YELLOW}Warning: apply_udev_rule.sh not found, skipping...${NC}"
     apply_udev_rule() { :; }  # No-op function
 fi
 
-if [ -f "${PROJECT_ROOT}/extern/tactile_sensors/utils/scripts/set_sensor_permissions.sh" ]; then
-    source "${PROJECT_ROOT}/extern/tactile_sensors/utils/scripts/set_sensor_permissions.sh"
+if [ -f "${TACTILE_HELPERS}/set_sensor_permissions.sh" ]; then
+    source "${TACTILE_HELPERS}/set_sensor_permissions.sh"
     echo -e "${GREEN}✓ Loaded set_sensor_permissions.sh${NC}"
 else
     echo -e "${YELLOW}Warning: set_sensor_permissions.sh not found, skipping...${NC}"
     set_sensor_permissions() { :; }  # No-op function
 fi
 
-if [ -f "${PROJECT_ROOT}/extern/tactile_sensors/utils/scripts/find_sensor_devices.sh" ]; then
-    source "${PROJECT_ROOT}/extern/tactile_sensors/utils/scripts/find_sensor_devices.sh"
+if [ -f "${TACTILE_HELPERS}/find_sensor_devices.sh" ]; then
+    source "${TACTILE_HELPERS}/find_sensor_devices.sh"
     echo -e "${GREEN}✓ Loaded find_sensor_devices.sh${NC}"
 else
     echo -e "${YELLOW}Warning: find_sensor_devices.sh not found, skipping...${NC}"
