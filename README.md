@@ -409,7 +409,7 @@ The same values reach a controller as state interfaces. `robotiq_driver` exports
 
 | Interface | Unit | Description |
 |---|---|---|
-| `position` | rad (m on a Hand-E) | From gPO. On the 2F models, the angle of the driven knuckle joint, not the opening in millimetres: `0.0` open → ~`0.8` closed on a 2F-85, over a linear approximation of a travel the gripper reports in 227 counts. On the Hand-E, one finger's travel: `0.0` open → `0.025` closed |
+| `position` | rad (m on a Hand-E) | From gPO. On the 2F models, the angle of the driven knuckle joint, not the opening in millimetres: `0.0` open → ~`0.8` closed on a 2F-85 and `0.77` on a 2F-140, over a linear approximation of a travel the gripper reports in 227 counts. On the Hand-E, one finger's travel: `0.0` open → `0.025` closed |
 | `velocity` | rad/s (m/s on a Hand-E) | Always `0.0`. The status block carries no velocity, and the driver does not differentiate the position |
 | `motor_current` | A | gCU, the motor current the manual gives as 10 mA per count, so `0.0` to `2.55` |
 | `object_status` | — | gOBJ verbatim: `0` moving, `1` object held while opening, `2` object held while closing, `3` at the requested position |

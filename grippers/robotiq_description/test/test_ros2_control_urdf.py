@@ -46,6 +46,7 @@ import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import numpy as np
 import pytest
 import yaml
 
@@ -305,6 +306,79 @@ def test_the_hand_e_joint_is_0_open_and_closes_as_it_grows():
 
     assert pad_gap(0.0) == pytest.approx(0.050)
     assert pad_gap(0.025) == pytest.approx(0.0)
+
+
+def _rotation(axis, angle):
+    axis = np.asarray(axis, dtype=float)
+    cross = np.array(
+        [[0, -axis[2], axis[1]], [axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]]
+    )
+    return np.eye(3) + np.sin(angle) * cross + (1 - np.cos(angle)) * cross @ cross
+
+
+def _rpy(roll, pitch, yaw):
+    return (
+        _rotation([0, 0, 1], yaw)
+        @ _rotation([0, 1, 0], pitch)
+        @ _rotation([1, 0, 0], roll)
+    )
+
+
+def _link_pose(robot, link, driven_joint, position):
+    joints = {
+        joint.find("child").get("link"): joint for joint in robot.findall("joint")
+    }
+    pose = np.eye(4)
+    while link in joints:
+        joint = joints[link]
+        origin = joint.find("origin")
+        step = np.eye(4)
+        step[:3, :3] = _rpy(*map(float, origin.get("rpy", "0 0 0").split()))
+        step[:3, 3] = list(map(float, origin.get("xyz", "0 0 0").split()))
+        if joint.get("type") == "revolute":
+            mimic = joint.find("mimic")
+            angle = position
+            if joint.get("name") != driven_joint:
+                angle = position * float(mimic.get("multiplier", "1")) + float(
+                    mimic.get("offset", "0")
+                )
+            turn = np.eye(4)
+            turn[:3, :3] = _rotation(
+                list(map(float, joint.find("axis").get("xyz").split())), angle
+            )
+            step = step @ turn
+        pose = step @ pose
+        link = joint.find("parent").get("link")
+    return pose
+
+
+@requires_xacro
+def test_the_2f_140_pads_span_the_stroke_up_to_the_driver_s_closed_position():
+    result = subprocess.run(
+        [
+            "xacro",
+            str(URDF_DIR / "robotiq_2f_140_gripper.urdf.xacro"),
+            "use_fake_hardware:=false",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    robot = ET.fromstring(result.stdout)
+    closed = float(
+        hardware_param(robot.find("ros2_control"), "gripper_closed_position")
+    )
+    upper = float(robot.find("joint[@name='finger_joint']/limit").get("upper"))
+
+    # The pad frames sit on the contact faces, which face each other along y.
+    def pad_gap(position):
+        left = _link_pose(robot, "left_inner_finger_pad", "finger_joint", position)
+        right = _link_pose(robot, "right_inner_finger_pad", "finger_joint", position)
+        return np.dot(right[:3, 3] - left[:3, 3], left[:3, 1])
+
+    assert closed <= upper
+    assert pad_gap(0.0) == pytest.approx(0.140, abs=0.001)
+    assert pad_gap(closed) == pytest.approx(0.0, abs=0.002)
 
 
 @requires_xacro
