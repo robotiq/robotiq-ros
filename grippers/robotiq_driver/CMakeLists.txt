@@ -1,9 +1,7 @@
 # See https://docs.ros.org/en/humble/How-To-Guides/Ament-CMake-Documentation.html
 
 cmake_minimum_required(VERSION 3.10)
-# C as well as CXX: the gripper SDK added below is a C/C++ project, and CMake 4
-# wants the language enabled here before the subproject asks for it.
-project(robotiq_driver LANGUAGES C CXX)
+project(robotiq_driver LANGUAGES CXX)
 
 # This module provides installation directories as per the GNU coding standards.
 include(GNUInstallDirs)
@@ -17,6 +15,10 @@ find_package(hardware_interface REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
+# The vendor package puts its install prefix on CMAKE_PREFIX_PATH, so it comes
+# before the SDK it provides.
+find_package(robotiq_grippers_sdk_vendor REQUIRED)
+find_package(grippers REQUIRED)
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
   ament_cmake
@@ -24,30 +26,9 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   pluginlib
   rclcpp
   rclcpp_lifecycle
+  robotiq_grippers_sdk_vendor
+  grippers
 )
-
-###############################################################################
-# GRIPPER SDK
-
-# The Modbus transport, the typed register blocks and the Robotiq::Gripper
-# runtime API live in the extern/grippers submodule; this package is the
-# ros2_control wrapper over them.
-#
-# EXCLUDE_FROM_ALL skips the SDK's own install/export rules: it is compiled
-# into robotiq_driver, not shipped as a second installed package.
-set(GRIPPERS_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../extern/grippers/sdk_cpp")
-if(NOT EXISTS "${GRIPPERS_SDK_DIR}/CMakeLists.txt")
-  message(FATAL_ERROR
-    "The gripper SDK is missing from ${GRIPPERS_SDK_DIR}. "
-    "Run `git submodule update --init extern/grippers` at the repository root.")
-endif()
-# The SDK declares its library without STATIC or SHARED, so it follows
-# BUILD_SHARED_LIBS. Nothing installs it, so a shared one would leave the
-# plugin needing a library that does not ship.
-set(_robotiq_saved_build_shared_libs "${BUILD_SHARED_LIBS}")
-set(BUILD_SHARED_LIBS OFF)
-add_subdirectory(${GRIPPERS_SDK_DIR} ${CMAKE_CURRENT_BINARY_DIR}/grippers_sdk EXCLUDE_FROM_ALL)
-set(BUILD_SHARED_LIBS "${_robotiq_saved_build_shared_libs}")
 
 ###############################################################################
 # Robotiq driver library.
@@ -85,10 +66,6 @@ target_include_directories(
   robotiq_driver
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  # The SDK's headers are part of this package's public API: hardware_interface.hpp
-  # holds a Robotiq::Gripper, so downstream compilations have to see it too.
-  # They are installed next to ours below, hence the single install interface.
-  $<BUILD_INTERFACE:${GRIPPERS_SDK_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(
@@ -98,18 +75,29 @@ target_link_libraries(
   pluginlib::pluginlib
   rclcpp::rclcpp
   rclcpp_lifecycle::rclcpp_lifecycle
+  # The SDK's headers are part of this package's public API: hardware_interface.hpp
+  # holds a Robotiq::Gripper, so downstream compilations have to see it too.
+  Robotiq::grippers_usage
   PRIVATE
-  # The SDK's object library, not its archive: the SDK's headers ship with this
-  # package, so a consumer may call any SDK entry point and every object has to
-  # land in the library, not just the ones the wrapper references.
-  # $<BUILD_INTERFACE:...> keeps it out of the installed export set, where there
-  # would be no target for it to resolve to.
-  #
-  # The consequence to know about: the whole SDK symbol set is exported from a
-  # dlopen'd plugin. A second package in the same process linking the SDK the
-  # same way gets its own copy with independent static state, and Robotiq::Gripper
-  # owns a serial link and a thread. One SDK consumer per process.
-  $<BUILD_INTERFACE:Robotiq::grippers_objects>
+  # Only so the library relinks when the archive changes: the options below
+  # already pull in every object, leaving this copy nothing to resolve.
+  Robotiq::grippers
+)
+# Every SDK object, not just the ones the wrapper references: downstream packages
+# reach the SDK through this library and may call any SDK entry point.
+# Humble EOL: replace these options and the PRIVATE Robotiq::grippers above with
+# $<LINK_LIBRARY:WHOLE_ARCHIVE,Robotiq::grippers>, which needs CMake 3.24.
+#
+# The consequence to know about: the whole SDK symbol set is exported from a
+# dlopen'd plugin. A second package in the same process linking the SDK the
+# same way gets its own copy with independent static state, and Robotiq::Gripper
+# owns a serial link and a thread. One SDK consumer per process.
+target_link_options(
+  robotiq_driver
+  PRIVATE
+  "LINKER:--whole-archive"
+  "$<TARGET_FILE:Robotiq::grippers>"
+  "LINKER:--no-whole-archive"
 )
 
 ###############################################################################
@@ -151,18 +139,6 @@ ament_export_libraries(
 install(
     DIRECTORY include/
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}          # include
-)
-
-# The SDK headers ship alongside ours: they are reachable from this package's
-# public headers, so a consumer including hardware_interface.hpp needs them.
-#
-# The pattern assumes the SDK is .hpp-only, which it is today. Anything else it
-# starts shipping — a C shim, a generated config header — would be dropped here
-# and fail at a downstream consumer's include, not in this build.
-install(
-    DIRECTORY ${GRIPPERS_SDK_DIR}/include/
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}          # include
-    FILES_MATCHING PATTERN "*.hpp"                   # not the SDK's own CMakeLists
 )
 
 # Install our library.

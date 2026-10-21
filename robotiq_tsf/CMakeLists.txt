@@ -8,30 +8,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(PkgConfig REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(Threads REQUIRED)
-
-pkg_check_modules(LIBSERIALPORT REQUIRED libserialport)
-
-# Tactile sensors SDK (extern/tactile_sensors submodule) — provides the packet
-# parsing that the SDK-backed poller (poll_data_sdk_node) relies on. Built as a
-# small static lib from the single SDK translation unit.
-set(TSF_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../extern/tactile_sensors/sdk_cpp")
-if(NOT EXISTS "${TSF_SDK_DIR}/RobotiqTactileSensor.cpp")
-  message(FATAL_ERROR
-    "Tactile sensors SDK not found at ${TSF_SDK_DIR}. "
-    "Initialize the submodule ('git submodule update --init --recursive') or, "
-    "for the Docker build, ensure docker/Dockerfile COPYs it into the workspace.")
-endif()
-add_library(robotiq_tactile_sdk STATIC ${TSF_SDK_DIR}/RobotiqTactileSensor.cpp)
-target_include_directories(robotiq_tactile_sdk
-  PUBLIC ${TSF_SDK_DIR} ${LIBSERIALPORT_INCLUDE_DIRS})
-target_link_libraries(robotiq_tactile_sdk
-  PUBLIC ${LIBSERIALPORT_LIBRARIES} Threads::Threads)
+find_package(robotiq_tactile_sdk_vendor REQUIRED)
 
 set(MSG_FILES
   "msg/Accelerometer.msg"
@@ -104,7 +86,6 @@ add_library(poll_data_sdk_lib STATIC
 target_include_directories(poll_data_sdk_lib
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    ${TSF_SDK_DIR}
 )
 # Imported targets rather than ament_target_dependencies(): the latter is gone
 # from ament_cmake in Lyrical. rclcpp::rclcpp, ament_index_cpp::ament_index_cpp
@@ -113,7 +94,7 @@ target_link_libraries(poll_data_sdk_lib
   PUBLIC
     ${PROJECT_NAME}_algorithms
     ${cpp_typesupport_target}
-    robotiq_tactile_sdk
+    robotiq_tactile_sdk_vendor::RobotiqTactileSensor
     Threads::Threads
     rclcpp::rclcpp
     ament_index_cpp::ament_index_cpp

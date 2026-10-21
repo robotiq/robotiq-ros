@@ -1,6 +1,0 @@
-[submodule "extern/tactile_sensors"]
-	path = extern/tactile_sensors
-	url = https://github.com/Robotiq/tactile_sensors.git
-[submodule "extern/grippers"]
-	path = extern/grippers
-	url = https://github.com/Robotiq/grippers.git

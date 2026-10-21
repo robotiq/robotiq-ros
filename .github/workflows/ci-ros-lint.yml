@@ -14,6 +14,7 @@ on:
     paths:
       - "grippers/**"
       - "robotiq_tsf/**"
+      - "robotiq_tactile_sdk_vendor/**"
       - ".github/workflows/ci-ros-lint.yml"
   workflow_dispatch:
 
@@ -33,6 +34,8 @@ jobs:
           distribution: jazzy
           linter: ${{ matrix.linter }}
           package-name: >-
+            robotiq_grippers_sdk_vendor
+            robotiq_tactile_sdk_vendor
             robotiq_driver
             robotiq_msgs
             robotiq_controllers
