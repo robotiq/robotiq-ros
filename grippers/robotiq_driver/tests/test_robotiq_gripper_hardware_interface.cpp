@@ -63,6 +63,15 @@ namespace robotiq_driver::test {
 namespace {
 constexpr const char* kComponentName = "robotiq_driver_ros2_control";
 
+hardware_interface::ResourceManager makeResourceManager(const std::string& urdf, rclcpp::Node& node)
+{
+#if HARDWARE_INTERFACE_VERSION_GTE(4, 13, 0)
+   return hardware_interface::ResourceManager(urdf, node.get_node_clock_interface(), node.get_node_logging_interface());
+#else
+   return hardware_interface::ResourceManager(urdf);
+#endif
+}
+
 //! One gripper's links, joint and ros2_control block, with \p prefix on the
 //! links, the joint, the GPIO and the component name, as robotiq_description's
 //! macro prefixes them. \p extra_hardware_params is spliced into the <hardware>
@@ -161,12 +170,7 @@ TEST(TestRobotiqGripperHardwareInterface, LoadsThePluginFromUrdf)
 
    rclcpp::Node node{"test_robotiq_gripper_hardware_interface"};
 
-#if HARDWARE_INTERFACE_VERSION_GTE(4, 13, 0)
-   // Initialize the resource manager
-   hardware_interface::ResourceManager rm(urdf, node.get_node_clock_interface(), node.get_node_logging_interface());
-#else
-   hardware_interface::ResourceManager rm(urdf);
-#endif
+   hardware_interface::ResourceManager rm = makeResourceManager(urdf, node);
 
    // Check interfaces
    EXPECT_EQ(1u, rm.system_components_size());
@@ -184,11 +188,7 @@ TEST(TestRobotiqGripperHardwareInterface, ExportsExpectedCommandInterfaces)
 
    rclcpp::Node node{"test_robotiq_gripper_hardware_interface"};
 
-#if HARDWARE_INTERFACE_VERSION_GTE(4, 13, 0)
-   hardware_interface::ResourceManager rm(urdf, node.get_node_clock_interface(), node.get_node_logging_interface());
-#else
-   hardware_interface::ResourceManager rm(urdf);
-#endif
+   hardware_interface::ResourceManager rm = makeResourceManager(urdf, node);
 
    const auto keys = rm.command_interface_keys();
    EXPECT_THAT(keys,
@@ -209,11 +209,7 @@ TEST(TestRobotiqGripperHardwareInterface, ExportsExpectedStateInterfaces)
 
    rclcpp::Node node{"test_robotiq_gripper_hardware_interface"};
 
-#if HARDWARE_INTERFACE_VERSION_GTE(4, 13, 0)
-   hardware_interface::ResourceManager rm(urdf, node.get_node_clock_interface(), node.get_node_logging_interface());
-#else
-   hardware_interface::ResourceManager rm(urdf);
-#endif
+   hardware_interface::ResourceManager rm = makeResourceManager(urdf, node);
 
    std::vector<std::string> joint_keys;
    for(const std::string& key : rm.state_interface_keys())
@@ -246,11 +242,7 @@ TEST(TestRobotiqGripperHardwareInterface, ExportsEveryStateInterfaceWhateverTheD
 
    rclcpp::Node node{"test_robotiq_gripper_hardware_interface"};
 
-#if HARDWARE_INTERFACE_VERSION_GTE(4, 13, 0)
-   hardware_interface::ResourceManager rm(urdf, node.get_node_clock_interface(), node.get_node_logging_interface());
-#else
-   hardware_interface::ResourceManager rm(urdf);
-#endif
+   hardware_interface::ResourceManager rm = makeResourceManager(urdf, node);
 
    EXPECT_THAT(rm.state_interface_keys(),
                testing::IsSupersetOf({"robotiq_85_left_knuckle_joint/motor_current",
@@ -272,11 +264,7 @@ TEST(TestRobotiqGripperHardwareInterface, UseDummyActivatesAndFollowsCommands)
 
    rclcpp::Node node{"test_robotiq_gripper_hardware_interface"};
 
-#if HARDWARE_INTERFACE_VERSION_GTE(4, 13, 0)
-   hardware_interface::ResourceManager rm(urdf, node.get_node_clock_interface(), node.get_node_logging_interface());
-#else
-   hardware_interface::ResourceManager rm(urdf);
-#endif
+   hardware_interface::ResourceManager rm = makeResourceManager(urdf, node);
 
    rclcpp_lifecycle::State active{lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE,
                                   hardware_interface::lifecycle_state_names::ACTIVE};
@@ -328,11 +316,7 @@ TEST(TestRobotiqGripperHardwareInterface, FaultInterfacesReadNoFaultOnAHealthyGr
 
    rclcpp::Node node{"test_robotiq_gripper_hardware_interface"};
 
-#if HARDWARE_INTERFACE_VERSION_GTE(4, 13, 0)
-   hardware_interface::ResourceManager rm(urdf, node.get_node_clock_interface(), node.get_node_logging_interface());
-#else
-   hardware_interface::ResourceManager rm(urdf);
-#endif
+   hardware_interface::ResourceManager rm = makeResourceManager(urdf, node);
 
    rclcpp_lifecycle::State active{lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE,
                                   hardware_interface::lifecycle_state_names::ACTIVE};
@@ -358,11 +342,7 @@ TEST(TestRobotiqGripperHardwareInterface, ReactivationRoundTripsThroughTheComman
 
    rclcpp::Node node{"test_robotiq_gripper_hardware_interface"};
 
-#if HARDWARE_INTERFACE_VERSION_GTE(4, 13, 0)
-   hardware_interface::ResourceManager rm(urdf, node.get_node_clock_interface(), node.get_node_logging_interface());
-#else
-   hardware_interface::ResourceManager rm(urdf);
-#endif
+   hardware_interface::ResourceManager rm = makeResourceManager(urdf, node);
 
    rclcpp_lifecycle::State active{lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE,
                                   hardware_interface::lifecycle_state_names::ACTIVE};
@@ -400,11 +380,7 @@ TEST(TestRobotiqGripperHardwareInterface, ExportsTheReactivateGpioUnderTheDeclar
 
    rclcpp::Node node{"test_robotiq_gripper_hardware_interface"};
 
-#if HARDWARE_INTERFACE_VERSION_GTE(4, 13, 0)
-   hardware_interface::ResourceManager rm(urdf, node.get_node_clock_interface(), node.get_node_logging_interface());
-#else
-   hardware_interface::ResourceManager rm(urdf);
-#endif
+   hardware_interface::ResourceManager rm = makeResourceManager(urdf, node);
 
    const auto keys = rm.command_interface_keys();
    EXPECT_THAT(keys,
@@ -423,11 +399,7 @@ TEST(TestRobotiqGripperHardwareInterface, TwoPrefixedGrippersShareOneDescription
 
    rclcpp::Node node{"test_robotiq_gripper_hardware_interface"};
 
-#if HARDWARE_INTERFACE_VERSION_GTE(4, 13, 0)
-   hardware_interface::ResourceManager rm(urdf, node.get_node_clock_interface(), node.get_node_logging_interface());
-#else
-   hardware_interface::ResourceManager rm(urdf);
-#endif
+   hardware_interface::ResourceManager rm = makeResourceManager(urdf, node);
 
    ASSERT_EQ(2u, rm.system_components_size());
    EXPECT_THAT(rm.command_interface_keys(),
@@ -533,11 +505,7 @@ TEST(TestRobotiqGripperHardwareInterface, StateInterfacesReadNaNBeforeActivation
 
    rclcpp::Node node{"test_robotiq_gripper_hardware_interface"};
 
-#if HARDWARE_INTERFACE_VERSION_GTE(4, 13, 0)
-   hardware_interface::ResourceManager rm(urdf, node.get_node_clock_interface(), node.get_node_logging_interface());
-#else
-   hardware_interface::ResourceManager rm(urdf);
-#endif
+   hardware_interface::ResourceManager rm = makeResourceManager(urdf, node);
 
    rclcpp_lifecycle::State inactive{lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE,
                                     hardware_interface::lifecycle_state_names::INACTIVE};

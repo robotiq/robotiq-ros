@@ -220,7 +220,13 @@ def test_mock_config_is_the_driver_config_without_the_object_status(config):
     driver_params.pop("gripper_closed_position", None)  # Humble EOL: delete.
     driver_params.pop("gripper_profile", None)  # Humble EOL: delete.
     del mock_params["use_object_status"]
+    mock_params.pop("gripper_closed_position", None)  # Humble EOL: delete.
+    mock_params.pop("gripper_profile", None)  # Humble EOL: delete.
     assert mock_params == driver_params
+    assert (
+        mock["robotiq_normalized_position_broadcaster"]
+        == driver["robotiq_normalized_position_broadcaster"]
+    )
 
 
 @pytest.mark.parametrize("config", ALL_CONFIGS + MOCK_CONFIGS + TOPIC_BASED_CONFIGS)
@@ -567,6 +573,7 @@ def test_launch_spawns_per_plugin(distro, hardware_config, monkeypatch):
         "robotiq_gripper_controller": resolved(hardware_config),
         "robotiq_activation_controller": resolved(hardware_config),
         "robotiq_gripper_status_broadcaster": resolved(hardware_config),
+        "robotiq_normalized_position_broadcaster": resolved(hardware_config),
     }
 
     mock_config = MOCK_OF[hardware_config]
@@ -576,6 +583,7 @@ def test_launch_spawns_per_plugin(distro, hardware_config, monkeypatch):
         "robotiq_gripper_controller": resolved(mock_config),
         "robotiq_activation_controller": resolved(mock_config),
         "robotiq_gripper_status_broadcaster": resolved(mock_config),
+        "robotiq_normalized_position_broadcaster": resolved(mock_config),
     }
 
     sim_config = TOPIC_BASED_OF[hardware_config]
@@ -584,6 +592,7 @@ def test_launch_spawns_per_plugin(distro, hardware_config, monkeypatch):
         "joint_state_broadcaster": resolved(sim_config),
         "robotiq_gripper_controller": resolved(sim_config),
         "robotiq_gripper_status_broadcaster": resolved(sim_config),
+        "robotiq_normalized_position_broadcaster": resolved(sim_config),
     }
 
 
@@ -648,19 +657,20 @@ def test_no_closed_position_from_a_description_without_a_value(hardware):
 # Humble EOL: delete this test.
 @requires_launch
 @pytest.mark.parametrize(
-    "distro,launch_arguments",
+    "distro,launch_arguments,reads",
     [
-        ("jazzy", {}),
-        ("humble", {"use_fake_hardware": "true"}),
-        ("humble", {"sim_topic_based": "true"}),
+        ("jazzy", {}, False),
+        ("humble", {}, True),
+        ("humble", {"use_fake_hardware": "true"}, True),
+        ("humble", {"sim_topic_based": "true"}, True),
     ],
 )
-def test_launch_reads_no_closed_position_unless_the_driver_needs_it(
-    distro, launch_arguments, monkeypatch
+def test_launch_reads_the_closed_position_on_humble_whatever_the_plugin(
+    distro, launch_arguments, reads, monkeypatch
 ):
     _, context = launch_entities(distro, monkeypatch, **launch_arguments)
-    assert "gripper_closed_position" not in context.launch_configurations
-    assert "gripper_profile" not in context.launch_configurations
+    assert ("gripper_closed_position" in context.launch_configurations) == reads
+    assert ("gripper_profile" in context.launch_configurations) == reads
 
 
 @pytest.mark.parametrize("config", TOPIC_BASED_CONFIGS)
@@ -681,6 +691,7 @@ def test_sim_configs_spawn_no_activation_controller(config):
         "joint_state_broadcaster",
         "robotiq_gripper_controller",
         "robotiq_gripper_status_broadcaster",
+        "robotiq_normalized_position_broadcaster",
     }
     assert controllers["update_rate"] == UPDATE_RATE_HZ
     assert "robotiq_activation_controller" not in load(config)
@@ -719,6 +730,7 @@ def test_controller_names_and_update_rate_are_identical_across_distros(config):
         "robotiq_gripper_controller",
         "robotiq_activation_controller",
         "robotiq_gripper_status_broadcaster",
+        "robotiq_normalized_position_broadcaster",
     }
     assert controllers["update_rate"] == UPDATE_RATE_HZ
     assert (
@@ -728,6 +740,10 @@ def test_controller_names_and_update_rate_are_identical_across_distros(config):
     assert (
         controllers["robotiq_gripper_status_broadcaster"]["type"]
         == "robotiq_controllers/GripperStatusBroadcaster"
+    )
+    assert (
+        controllers["robotiq_normalized_position_broadcaster"]["type"]
+        == "robotiq_controllers/NormalizedPositionBroadcaster"
     )
     assert (
         controllers["joint_state_broadcaster"]["type"]
@@ -820,16 +836,18 @@ HARDWARE_STEP = (
 CONTROLLER_STEP = (
     "ros2 run controller_manager spawner "
     "joint_state_broadcaster robotiq_gripper_controller robotiq_activation_controller "
-    "robotiq_gripper_status_broadcaster"
+    "robotiq_gripper_status_broadcaster robotiq_normalized_position_broadcaster"
 )
 
 
 @requires_launch
-@pytest.mark.parametrize("returncodes", [[1, 1, 1, 1], [0, 1, 0, 0], [1, 0, 0, 0]])
+@pytest.mark.parametrize(
+    "returncodes", [[1, 1, 1, 1, 1], [0, 1, 0, 0, 0], [1, 0, 0, 0, 0]]
+)
 def test_launch_hints_once_after_the_last_spawner_exits(monkeypatch, returncodes):
     emitted = drive_spawner_exits(monkeypatch, returncodes)
-    assert hints(emitted)[:-1] == [[], [], []]
-    assert shutdowns(emitted) == [[], [], [], []]
+    assert hints(emitted)[:-1] == [[], [], [], []]
+    assert shutdowns(emitted) == [[], [], [], [], []]
     (hint,) = hints(emitted)[-1]
     # Verified on a 2F-85: the first step alone leaves the controllers loaded
     # but inactive; the second is what configures and activates them again.
@@ -840,7 +858,7 @@ def test_launch_hints_once_after_the_last_spawner_exits(monkeypatch, returncodes
 def test_launch_hints_the_spawners_exact_command_line(monkeypatch):
     # Same arguments as the spawners themselves, so the two cannot drift; the
     # param file is the one the first spawn used, and Lyrical needs it.
-    emitted = drive_spawner_exits(monkeypatch, [1, 1, 1, 1])
+    emitted = drive_spawner_exits(monkeypatch, [1, 1, 1, 1, 1])
     (hint,) = hints(emitted)[-1]
     rerun = hint[hint.index(CONTROLLER_STEP) :]
     assert "--controller-manager /controller_manager" in rerun
@@ -850,13 +868,19 @@ def test_launch_hints_the_spawners_exact_command_line(monkeypatch):
 
 @requires_launch
 def test_launch_stays_quiet_when_every_spawner_succeeds(monkeypatch):
-    assert drive_spawner_exits(monkeypatch, [0, 0, 0, 0]) == [[], [], [], []]
+    assert drive_spawner_exits(monkeypatch, [0, 0, 0, 0, 0]) == [[], [], [], [], []]
 
 
 @requires_launch
 def test_launch_stays_quiet_when_the_spawners_are_killed(monkeypatch):
     # SIGINT from a Ctrl-C or from the launch's own Shutdown is not a failure.
-    assert drive_spawner_exits(monkeypatch, [-2, -2, -2, -2]) == [[], [], [], []]
+    assert drive_spawner_exits(monkeypatch, [-2, -2, -2, -2, -2]) == [
+        [],
+        [],
+        [],
+        [],
+        [],
+    ]
 
 
 @requires_launch
@@ -874,8 +898,8 @@ def test_launch_stays_quiet_once_shutting_down(monkeypatch):
 @pytest.mark.parametrize(
     "launch_arguments,returncodes",
     [
-        ({"sim_topic_based": "true"}, [1, 1, 1]),
-        ({"use_fake_hardware": "true"}, [1, 1, 1, 1]),
+        ({"sim_topic_based": "true"}, [1, 1, 1, 1]),
+        ({"use_fake_hardware": "true"}, [1, 1, 1, 1, 1]),
     ],
 )
 def test_launch_gives_no_reconnect_advice_without_a_gripper(
@@ -891,11 +915,11 @@ def test_launch_gives_no_reconnect_advice_without_a_gripper(
 def test_launch_ends_on_humble_where_the_node_cannot_survive(monkeypatch):
     # Humble's controller_manager aborts, or wedges, on a failed connect, so the
     # spawners' failure is the only exit signal the launch can act on there.
-    emitted = drive_spawner_exits(monkeypatch, [1, 1, 1, 1], distro="humble")
-    assert hints(emitted)[:-1] == [[], [], []]
+    emitted = drive_spawner_exits(monkeypatch, [1, 1, 1, 1, 1], distro="humble")
+    assert hints(emitted)[:-1] == [[], [], [], []]
     assert "relaunch" in hints(emitted)[-1][0]
     assert CONTROLLER_STEP not in hints(emitted)[-1][0]
-    assert [len(s) for s in shutdowns(emitted)] == [0, 0, 0, 1]
+    assert [len(s) for s in shutdowns(emitted)] == [0, 0, 0, 0, 1]
 
 
 @requires_launch
@@ -903,19 +927,19 @@ def test_launch_still_ends_on_humble_without_a_gripper(monkeypatch):
     # No reconnect advice under the mock, but shutdown_on_failure is not about
     # the gripper and must hold.
     emitted = drive_spawner_exits(
-        monkeypatch, [1, 1, 1, 1], distro="humble", use_fake_hardware="true"
+        monkeypatch, [1, 1, 1, 1, 1], distro="humble", use_fake_hardware="true"
     )
-    assert hints(emitted) == [[], [], [], []]
-    assert [len(s) for s in shutdowns(emitted)] == [0, 0, 0, 1]
+    assert hints(emitted) == [[], [], [], [], []]
+    assert [len(s) for s in shutdowns(emitted)] == [0, 0, 0, 0, 1]
 
 
 @requires_launch
 def test_launch_keeps_running_on_humble_when_asked(monkeypatch):
     emitted = drive_spawner_exits(
-        monkeypatch, [1, 1, 1, 1], distro="humble", shutdown_on_failure="false"
+        monkeypatch, [1, 1, 1, 1, 1], distro="humble", shutdown_on_failure="false"
     )
-    assert [len(h) for h in hints(emitted)] == [0, 0, 0, 1]
-    assert shutdowns(emitted) == [[], [], [], []]
+    assert [len(h) for h in hints(emitted)] == [0, 0, 0, 0, 1]
+    assert shutdowns(emitted) == [[], [], [], [], []]
 
 
 def control_node_exit(monkeypatch, distro="jazzy", **launch_arguments):

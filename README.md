@@ -336,6 +336,32 @@ it, since Gazebo hosts its own `controller_manager`.
 
 <!-- Humble EOL: simplify — one action type and one example goal remain. -->
 
+`robotiq_gripper_controller` serves two actions on the same gripper: `normalized_gripper_cmd`, the preferred one, and `gripper_cmd`, in the joint's own unit. Both are usable at any time. One controller drives the joint for both, so a goal on either preempts the goal running on the other, which ends aborted.
+
+#### Normalized position (preferred)
+
+`/robotiq_gripper_controller/normalized_gripper_cmd` takes a position from **0 = fully open to 1 = fully closed**. It is the position register scaled to 0..1 (`register / 255`), in the same direction as the register. It needs no calibration, so it means the same on every model and fingertip, and the conversion, done by the SDK, is exact: a position read back and sent again commands the same register. A value outside 0..1 is clamped, with a warning; NaN or infinity is rejected.
+
+```bash
+# Jazzy / Lyrical: the goal is the gripper_cmd goal with a normalized position
+ros2 action send_goal /robotiq_gripper_controller/normalized_gripper_cmd \
+  control_msgs/action/ParallelGripperCommand \
+  "{command: {position: [0.5], effort: [40.0]}}"
+
+# Humble
+ros2 action send_goal /robotiq_gripper_controller/normalized_gripper_cmd \
+  control_msgs/action/GripperCommand \
+  "{command: {position: 0.5, max_effort: 50.0}}"
+```
+
+The goal takes the same message as `gripper_cmd` below, with the same `effort` and `velocity`, and its result reports the position normalized too. `robotiq_normalized_position_broadcaster` publishes the read-back on `/joint_states` as `robotiq_normalized_joint`, a name no URDF joint carries. Both work on every hardware plugin, `use_fake_hardware:=true` and the simulators included. With a prefixed description, set the broadcaster's `normalized_joint` parameter to the prefixed name.
+
+A position read back never lands exactly on 0 or 1: the fingers' stops sit inside the register range, about 0.01 from the open end and 0.02 from the closed end on a Hand-E. Wait for the action's result, which the gripper's object detection decides, rather than for an end value.
+
+The action and the broadcaster need the joint's `gripper_closed_position` and `gripper_profile`, which every shipped description gives every plugin; without them the controller warns and serves `gripper_cmd` alone, and the broadcaster does not configure.
+
+#### Joint position
+
 On **Jazzy and Lyrical**, `robotiq_gripper_controller` is a `robotiq_controllers/GripperActionController`, the stock `parallel_gripper_action_controller/GripperActionController` with one parameter added (see below), so its action `/robotiq_gripper_controller/gripper_cmd` takes a `control_msgs/action/ParallelGripperCommand` — a `sensor_msgs/JointState` goal (not the older `GripperCommand`). On **Humble** it is `robotiq_controllers/GripperCommandController`, the stock `position_controllers/GripperActionController` with the same parameter, taking `control_msgs/action/GripperCommand`; see [Supported ROS 2 distros](#supported-ros-2-distros).
 
 The bringup above holds its terminal, so open a **second terminal**, exec into the running container, then send a goal:
@@ -355,7 +381,7 @@ ros2 action send_goal /robotiq_gripper_controller/gripper_cmd \
   "{command: {position: 0.4, max_effort: 50.0}}"
 ```
 
-`position` is the joint angle in radians (≈ `0.0` open → ~`0.8` closed on a 2F-85), one finger's travel in metres on a Hand-E (`0.0` open → `0.025` closed); on Jazzy/Lyrical `effort` and `velocity` are optional max limits, mapped to the controller's `set_gripper_max_effort` / `set_gripper_max_velocity` interfaces.
+`position` is the joint angle in radians (≈ `0.0` open → ~`0.8` closed on a 2F-85), one finger's travel in metres on a Hand-E (`0.0` open → `0.025` closed); on Jazzy/Lyrical `effort` and `velocity` are optional max limits, mapped to the controller's `set_gripper_max_effort` / `set_gripper_max_velocity` interfaces. The driver rounds `position` to the nearest register count; before 1.4.0 it truncated, so the same goal can now land one count higher.
 
 `effort` sets the gripper's grip threshold, as a fraction of `gripper_max_force` written to rFR. It sets the maximum current at the motor, and does **not** directly control the maximum force the gripper applies: that is also largely influenced by the closing speed. Nothing reads a force out of the gripper, and `motor_current` is not convertible to one.
 

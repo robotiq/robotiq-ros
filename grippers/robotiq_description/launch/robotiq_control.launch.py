@@ -195,12 +195,6 @@ GRIPPER_STALL_VELOCITY_THRESHOLDS = {
 }
 
 
-class UsesRealGripper(Substitution):
-    def perform(self, context):
-        flags = (LaunchConfiguration(flag) for flag in HARDWARE_FLAGS)
-        return str(not any(evaluate_condition_expression(context, [f]) for f in flags))
-
-
 # The driver's gripper_closed_position and gripper_profile for the joint, read
 # from the description the launch loads, for the Humble gripper controller,
 # which cannot read them itself. Humble EOL: delete driver_param_from_description,
@@ -496,6 +490,7 @@ def generate_launch_description():
         "robotiq_gripper_controller": None,
         "robotiq_activation_controller": UnlessCondition(topic_based),
         "robotiq_gripper_status_broadcaster": None,
+        "robotiq_normalized_position_broadcaster": None,
     }
     spawners = [
         spawner(name, condition) for name, condition in spawned_controllers.items()
@@ -594,21 +589,18 @@ def generate_launch_description():
         spawner_hint,
     ]
 
-    # Humble EOL: delete. Only the driver's description carries the value, and
-    # only the driver's config reads it.
+    # Humble EOL: delete.
     if distro == "humble":
         args.append(
             launch.actions.SetLaunchConfiguration(
                 "gripper_closed_position",
                 ClosedPosition(LaunchConfiguration("gripper_joint")),
-                condition=IfCondition(UsesRealGripper()),
             )
         )
         args.append(
             launch.actions.SetLaunchConfiguration(
                 "gripper_profile",
                 GripperProfile(LaunchConfiguration("gripper_joint")),
-                condition=IfCondition(UsesRealGripper()),
             )
         )
 

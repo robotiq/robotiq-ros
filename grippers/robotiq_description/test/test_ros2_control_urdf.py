@@ -183,6 +183,17 @@ def test_mock_publishes_the_same_joints_as_hardware(model, joint):
 
 
 @requires_xacro
+@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize(
+    "use_fake_hardware,extra_args",
+    [(False, ()), (True, ()), (False, (TOPIC_BASED_ARG,))],
+)
+def test_every_plugin_gets_the_joint_scale(model, use_fake_hardware, extra_args):
+    ros2_control = expand(model, use_fake_hardware, *extra_args)
+    assert hardware_param(ros2_control, "gripper_closed_position") is not None
+
+
+@requires_xacro
 @pytest.mark.parametrize("model,joint", MODELS.items())
 def test_gripper_controller_config_interfaces_exist_under_mock(model, joint):
     # Ties config/robotiq_controllers.yaml to the mock URDF: these two parameters
@@ -238,9 +249,9 @@ def test_baudrate_reaches_the_driver(model):
         ("robotiq_hand_e_gripper.urdf.xacro", "hand_e"),
     ],
 )
-def test_the_driver_gets_the_models_sdk_profile(model, profile):
+def test_every_plugin_gets_the_models_sdk_profile(model, profile):
     assert hardware_param(expand(model, False), "gripper_profile") == profile
-    assert hardware_param(expand(model, True), "gripper_profile") is None
+    assert hardware_param(expand(model, True), "gripper_profile") == profile
 
 
 @requires_xacro
