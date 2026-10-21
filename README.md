@@ -6,7 +6,7 @@ ROS packages for Robotiq grippers and sensors.
 
 | Package | Description | ROS Version |
 |---|---|---|
-| [robotiq_tsf](robotiq_tsf/) | TSF-85 tactile sensor driver | ROS 2 Humble / Jazzy / Lyrical ([main](https://github.com/robotiq/ros/tree/main)) / ROS 1 Noetic ([noetic](https://github.com/robotiq/ros/tree/noetic)) |
+| [robotiq_tsf](robotiq_tsf/) | TSF-85 tactile sensor driver | ROS 2 Humble / Jazzy / Lyrical ([main](https://github.com/robotiq/robotiq-ros/tree/main)) / ROS 1 Noetic ([noetic](https://github.com/robotiq/robotiq-ros/tree/noetic)) |
 | [grippers](grippers/) | ROS 2 `ros2_control` driver for Robotiq adaptive grippers (2F-85, 2F-140, Hand-E), on the [Robotiq C++ SDK](https://github.com/Robotiq/grippers) | ROS 2 Humble / Jazzy / Lyrical |
 | [mcp](mcp/) | MCP server exposing the 2F grippers to LLM agents, on the `grippers/` driver (plain Python project, not an ament package) | Python 3.12 + a sourced ROS 2 install |
 
@@ -173,7 +173,7 @@ depended on were replaced by the SDK, three distros build from one branch, and b
 upstream ([#114](https://github.com/PickNikRobotics/ros2_robotiq_gripper/issues/114),
 [#88](https://github.com/PickNikRobotics/ros2_robotiq_gripper/issues/88)) are fixed here. Upstream
 copyright and `<author>` tags are retained; issues and support go to
-[robotiq/ros/issues](https://github.com/robotiq/ros/issues), not to PickNik.
+[robotiq/robotiq-ros/issues](https://github.com/robotiq/robotiq-ros/issues), not to PickNik.
 
 ### Migrating from PickNik's ros2_robotiq_gripper
 
@@ -182,8 +182,8 @@ This repository is the maintained continuation of the PickNik package. Package n
 **Docker (recommended):**
 
 ```bash
-git clone --recurse-submodules https://github.com/robotiq/ros.git
-cd ros && ./docker/run.sh gripper
+git clone --recurse-submodules https://github.com/robotiq/robotiq-ros.git
+cd robotiq-ros && ./docker/run.sh gripper
 ```
 
 <!-- Humble EOL: simplify the distro list below. -->
@@ -193,7 +193,7 @@ cd ros && ./docker/run.sh gripper
 cd ~/ws/src
 rm -rf ros2_robotiq_gripper        # remove the PickNik clone to prevent duplicate package name failures
 rm -rf serial                      # no longer used: the gripper SDK talks to the port itself
-git clone --recurse-submodules https://github.com/robotiq/ros.git
+git clone --recurse-submodules https://github.com/robotiq/robotiq-ros.git
 cd ~/ws
 rosdep install --from-paths src --ignore-src -y
 rm -rf build install               # clear artifacts built from the PickNik sources
@@ -263,7 +263,7 @@ ros2 action send_goal /robotiq_gripper_controller/gripper_cmd \
 - `use_fake_hardware` and `baudrate` launch args on `robotiq_control.launch.py` (hardware-free bringup, previously hardcoded off; a custom baudrate, previously an edit to the xacro)
 - Actionable error messages when the gripper does not respond (24 V power, RS-485 wiring, `slave_address` / `baudrate` hints)
 - A unified Docker image with device mapping ([Docker](#docker))
-- Active maintenance — PickNik's in-tree README and CI were removed; docs live in this README, and issues go to [robotiq/ros/issues](https://github.com/robotiq/ros/issues)
+- Active maintenance — PickNik's in-tree README and CI were removed; docs live in this README, and issues go to [robotiq/robotiq-ros/issues](https://github.com/robotiq/robotiq-ros/issues)
 
 | Package | Description |
 |---|---|
@@ -539,7 +539,7 @@ CI builds the packages and runs their unit tests on pull requests, once per supp
 The `docker/` folder provides scripts to build and run the TSF-85 and 2F grippers inside a container. Clone with submodules to pull in the required utilities:
 
 ```bash
-git clone --recurse-submodules https://github.com/robotiq/ros.git
+git clone --recurse-submodules https://github.com/robotiq/robotiq-ros.git
 ```
 
 If you already cloned without `--recurse-submodules`:

@@ -95,7 +95,7 @@ the distro. The outcome is the controller's verdict: `reached_goal` is
 `reached`, `stalled` is `stopped_on_object`, and a goal it decided neither way
 is `incomplete` (see `service.py`). On a real gripper the controller reads both
 flags from the gripper's own object detection, so the server needs a driver
-with robotiq/ros#100.
+with robotiq/robotiq-ros#100.
 
 ### Connecting an agent
 
@@ -224,7 +224,7 @@ outcomes, so a stalled close is reported as a grasp, not a failure.
 - **A dropped serial link shows up as a 10 s wait.** The driver keeps its last
   reading when the USB link faults, so a move waits out the controller's 10 s
   object-status timeout and returns `incomplete`; nothing in the result says
-  the link is down (robotiq/ros#87).
+  the link is down (robotiq/robotiq-ros#87).
 - **Only one gripper can run per ROS graph with the shipped launch file.** The
   server is ready for two grippers: with the `left` and `right` entries from
   `grippers.yaml.example`, it sends `left` commands to the driver under `/left`
@@ -233,7 +233,7 @@ outcomes, so a stalled close is reported as a grasp, not a failure.
   driver under `/left` or `/right`, so a second driver started next to the
   first can't get its own name, and its controllers never start. Until the
   launch file takes a namespace
-  ([#89](https://github.com/robotiq/ros/issues/89)), keep one entry in
+  ([#89](https://github.com/robotiq/robotiq-ros/issues/89)), keep one entry in
   `grippers.yaml`, or write your own launch file that starts each driver under
   its namespace.
 

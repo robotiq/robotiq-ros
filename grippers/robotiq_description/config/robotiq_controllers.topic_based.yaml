@@ -32,7 +32,7 @@
 #   joint velocities leaves the velocity state at 0, which reads as "stalled"
 #   from the first cycle, so allow_stalling would report every out-of-tolerance
 #   goal as succeeded. The client decides whether an aborted, stalled goal means
-#   an object was gripped. See robotiq/ros#63 for the stall window itself.
+#   an object was gripped. See robotiq/robotiq-ros#63 for the stall window itself.
 controller_manager:
   ros__parameters:
     update_rate: 500  # Hz

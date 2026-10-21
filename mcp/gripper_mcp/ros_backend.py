@@ -40,7 +40,7 @@ its `gripper_max_force` to fill the register, so the effort is sent as that
 fraction of the `gripper_max_force` the robot description gives the driver. The
 speed likewise: a fraction of the gripper's full speed, sent on the goal as
 `command.velocity`, that fraction of `gripper_max_speed`. Temporary:
-robotiq/ros#70 has the driver take the SDK's effort directly, and this scaling
+robotiq/robotiq-ros#70 has the driver take the SDK's effort directly, and this scaling
 goes with it. A move that names no effort sends the model's default; one that
 names no speed runs at the controller's own.
 
