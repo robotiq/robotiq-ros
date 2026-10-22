@@ -186,6 +186,15 @@ TEST(HardwareParameters, AnUnusableScaleFallsBackToItsDefault)
    }
 }
 
+TEST(HardwareParameters, ParseFullScaleTakesWhatTheParserKeeps)
+{
+   EXPECT_EQ(0.075, parseFullScale("0.075"));
+   for(const char* unusable : {"0", "-1", "nan", "-inf", "inf", "fast", ""})
+   {
+      EXPECT_FALSE(parseFullScale(unusable).has_value()) << "'" << unusable << "'";
+   }
+}
+
 TEST(HardwareParameters, AMissingClosedPositionIsFatal)
 {
    // Unlike every other parameter this one has no defensible default: a

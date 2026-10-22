@@ -34,6 +34,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <optional>
 #include <stdexcept>
 #include <string>
 
@@ -48,8 +49,6 @@ constexpr const char* kBaudrateParam = "baudrate";
 constexpr const char* kTimeoutParam = "timeout";
 constexpr const char* kSlaveAddressParam = "slave_address";
 constexpr const char* kConnectionFrequencyParam = "connection_frequency";
-constexpr const char* kMaxSpeedParam = "gripper_max_speed";
-constexpr const char* kMaxForceParam = "gripper_max_force";
 constexpr const char* kSpeedMultiplierParam = "gripper_speed_multiplier";
 constexpr const char* kForceMultiplierParam = "gripper_force_multiplier";
 constexpr const char* kActivationTimeoutParam = "activation_timeout";
@@ -122,15 +121,14 @@ double asDouble(const std::string& text)
    return std::stod(text);
 }
 
-//! For a scale the register arithmetic divides by.
-double asPositiveDouble(const std::string& text)
+double asFullScale(const std::string& text)
 {
-   const double value = std::stod(text);
-   if(!std::isfinite(value) || value <= 0.0)
+   const std::optional<double> value = parseFullScale(text);
+   if(!value)
    {
       throw std::invalid_argument("expected a finite value above zero");
    }
-   return value;
+   return *value;
 }
 } // namespace
 
@@ -191,8 +189,8 @@ GripperParameters parseParameters(const hardware_interface::HardwareInfo& info, 
                   kProfileParam);
    }
 
-   parameters.max_speed = parameterOr<double>(info, logger, kMaxSpeedParam, parameters.max_speed, asPositiveDouble);
-   parameters.max_force = parameterOr<double>(info, logger, kMaxForceParam, parameters.max_force, asPositiveDouble);
+   parameters.max_speed = parameterOr<double>(info, logger, kMaxSpeedParam, parameters.max_speed, asFullScale);
+   parameters.max_force = parameterOr<double>(info, logger, kMaxForceParam, parameters.max_force, asFullScale);
    parameters.speed_multiplier =
       parameterOr<double>(info, logger, kSpeedMultiplierParam, parameters.speed_multiplier, asDouble);
    parameters.force_multiplier =
@@ -210,5 +208,17 @@ GripperParameters parseParameters(const hardware_interface::HardwareInfo& info, 
    parameters.use_dummy = use_dummy != info.hardware_parameters.end() && !isFalsey(use_dummy->second);
 
    return parameters;
+}
+std::optional<double> parseFullScale(const std::string& text)
+{
+   try
+   {
+      const double value = std::stod(text);
+      return isValidFullScale(value) ? std::optional(value) : std::nullopt;
+   }
+   catch(const std::exception&)
+   {
+      return std::nullopt;
+   }
 }
 } // namespace robotiq_driver
