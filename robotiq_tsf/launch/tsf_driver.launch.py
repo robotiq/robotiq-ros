@@ -41,7 +41,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
     poller_arg = DeclareLaunchArgument(
         "poller",
-        default_value="poll_data_node",
+        default_value="poll_data_sdk_node",
         description="Driver executable publishing StaticData. Override to "
         "point the viz at an alternative poller.",
     )

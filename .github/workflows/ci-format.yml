@@ -2,8 +2,7 @@
 #
 # A single root .pre-commit-config.yaml drives clang-format (C/C++), black +
 # flake8 (Python), codespell, and the standard whitespace/eol/yaml hooks. Its
-# top-level `files` allow-list scopes the run to the trees we own and leaves the
-# extern/tactile_sensors submodule out.
+# top-level `files` allow-list scopes the run to the trees we own.
 name: Format
 
 on:
@@ -11,6 +10,7 @@ on:
     paths:
       - "grippers/**"
       - "robotiq_tsf/**"
+      - "robotiq_tactile_sdk_vendor/**"
       - "mcp/**"
       - "docker/**"
       - ".clang-format"

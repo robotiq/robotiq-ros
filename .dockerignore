@@ -1,13 +1,4 @@
 .git
-# Ignore everything under extern EXCEPT the two SDKs the image builds:
-# tactile_sensors (robotiq_tsf's poll_data_sdk_node) and grippers (the gripper
-# SDK). Copying the checkouts rather than re-cloning them means uncommitted
-# local SDK changes compile in the image. (Re-including a nested path requires
-# un-ignoring each parent dir.)
-extern/*
-!extern/tactile_sensors
-extern/tactile_sensors/*
-!extern/tactile_sensors/sdk_cpp
-!extern/grippers
-extern/grippers/*
-!extern/grippers/sdk_cpp
+build/
+install/
+log/

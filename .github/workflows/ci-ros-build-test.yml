@@ -17,6 +17,7 @@ on:
   pull_request:
     paths:
       - "robotiq_tsf/**"
+      - "robotiq_tactile_sdk_vendor/**"
       - "grippers/**"
       - ".github/workflows/ci-ros-build-test.yml"
   workflow_dispatch:
@@ -59,10 +60,6 @@ jobs:
           apt-get install -y git lcov \
             python3-colcon-lcov-result python3-colcon-coveragepy-result
       - uses: actions/checkout@v5
-        with:
-          # Both SDKs are compiled from source out of extern/: tactile_sensors
-          # by robotiq_tsf's poll_data_sdk_node, grippers by robotiq_driver.
-          submodules: true
       # action-ros-ci runs git against the checkout as root inside the container;
       # mark it safe to avoid git's "dubious ownership" error.
       - run: git config --global --add safe.directory '*'
