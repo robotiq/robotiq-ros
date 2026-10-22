@@ -155,7 +155,7 @@ In the combined launch the pad frames are TF-mounted on the gripper fingertip li
 
 ROS 2 `ros2_control` driver for Robotiq 2F adaptive grippers, under [`grippers/`](grippers/).
 
-Descriptions ship for the **2F-85**, the **2F-140** and the **Hand-E**; `robotiq_control.launch.py` defaults to the 2F-85, so pass `gripper_model:=2f_140` or `gripper_model:=hand_e` for the others. That argument selects the gripper macro in the xacro and the joint the controller drives (`robotiq_85_left_knuckle_joint`, `finger_joint` or `hande_left_finger_joint`); a custom description keeps `model:=<path>` and still sets `gripper_model` to the gripper it carries, as the controller's `goal_tolerance` and topic-based `stall_velocity_threshold` follow it, plus `gripper_joint` if its joint is named differently. The controller configs in `config/` write that joint as `$(var gripper_joint)`, which only the launch resolves — loaded directly into your own `ros2_control_node` they are not valid as they stand. Hardware validation to date is on a 2F-85 and a Hand-E — the 2F-140 description ships untested against hardware.
+Descriptions ship for the **2F-85**, the **2F-140** and the **Hand-E**; `robotiq_control.launch.py` defaults to the 2F-85, so pass `gripper_model:=2f_140` or `gripper_model:=hand_e` for the others. That argument selects the gripper macro in the xacro and the joint the controller drives (`robotiq_85_left_knuckle_joint`, `finger_joint` or `hande_left_finger_joint`); a custom description keeps `model:=<path>` and still sets `gripper_model` to the gripper it carries, as the controller's `goal_tolerance` and topic-based `stall_velocity_threshold` follow it, plus `gripper_joint` if its joint is named differently. The controller configs in `config/` write that joint as `$(var gripper_joint)`, which only the launch resolves — loaded directly into your own `ros2_control_node` they are not valid as they stand. All three are validated on hardware.
 
 The Hand-E's `hande_left_finger_joint` is prismatic: that finger's travel in metres, `0.0` open → `0.025` closed, the same direction as the 2F knuckle. The right finger mimics it.
 
@@ -409,7 +409,7 @@ The same values reach a controller as state interfaces. `robotiq_driver` exports
 
 | Interface | Unit | Description |
 |---|---|---|
-| `position` | rad (m on a Hand-E) | From gPO. On the 2F models, the angle of the driven knuckle joint, not the opening in millimetres: `0.0` open → ~`0.8` closed on a 2F-85, over a linear approximation of a travel the gripper reports in 227 counts. On the Hand-E, one finger's travel: `0.0` open → `0.025` closed |
+| `position` | rad (m on a Hand-E) | From gPO. On the 2F models, the angle of the driven knuckle joint, not the opening in millimetres: `0.0` open → ~`0.8` closed on a 2F-85 and `0.77` on a 2F-140, over a linear approximation of a travel the gripper reports in 227 counts. On the Hand-E, one finger's travel: `0.0` open → `0.025` closed |
 | `velocity` | rad/s (m/s on a Hand-E) | Always `0.0`. The status block carries no velocity, and the driver does not differentiate the position |
 | `motor_current` | A | gCU, the motor current the manual gives as 10 mA per count, so `0.0` to `2.55` |
 | `object_status` | — | gOBJ verbatim: `0` moving, `1` object held while opening, `2` object held while closing, `3` at the requested position |
@@ -435,7 +435,7 @@ None of the four beyond `position` and `velocity` are `ros2_control` standard in
 | Parameter | Default | Description |
 |---|---|---|
 | `gripper_closed_position` | *required* | Joint position at a fully closed gripper, in radians on the 2F models and metres on the Hand-E — the scale of the linear position mapping |
-| `gripper_profile` | `2f_85` | The SDK device profile whose register counts span the position mapping: `2f_85` or `hand_e`. Every shipped description sets it, the 2F-140's to `2f_85` until it has its own. Leaving it out keeps the 2F-85's and logs a deprecation warning, as it is required from the next major release; an unknown name fails the component |
+| `gripper_profile` | `2f_85` | The SDK device profile whose register counts span the position mapping: `2f_85`, `2f_140` or `hand_e`. Every shipped description sets it. Leaving it out keeps the 2F-85's and logs a deprecation warning, as it is required from the next major release; an unknown name fails the component |
 | `COM_port` | `/dev/ttyUSB0` | Serial port |
 | `baudrate` | `115200` | Must match the gripper's persisted setting, which is why it is also a launch argument, `baudrate:=<rate>`. Rejected outside 1..1000000. Most units stay at 115200; the gripper's own rate is changed in the Robotiq User Interface (*Modbus RTU Parameters*), not from here, and the gripper must be rebooted afterwards |
 | `timeout` | `0.5` | Per-transaction serial timeout, in seconds |
@@ -494,17 +494,17 @@ A fault can also be cleared without cycling the lifecycle state, by writing to t
 
 ### RViz
 
-Pass `launch_rviz:=true` to open RViz with the gripper model (default config `robotiq_description/rviz/view_urdf.rviz`); the joints update live from `joint_state_broadcaster`. Override with `rvizconfig:=/path/to/your.rviz`. Args combine — e.g. `use_fake_hardware:=true launch_rviz:=true` to visualize without hardware. Running via `docker/run.sh` already forwards X11, so the RViz window displays from inside the container (if it can't connect to the display, run `xhost +local:root` on the host once).
+Pass `launch_rviz:=true` to open RViz with the gripper model (default config from `gripper_model`: `robotiq_description/rviz/view_urdf_2f_140.rviz` for the 2F-140, `view_urdf.rviz` otherwise); the joints update live from `joint_state_broadcaster`. Override with `rvizconfig:=/path/to/your.rviz`. Args combine — e.g. `use_fake_hardware:=true launch_rviz:=true` to visualize without hardware. Running via `docker/run.sh` already forwards X11, so the RViz window displays from inside the container (if it can't connect to the display, run `xhost +local:root` on the host once).
 
 #### Visualizing the model without hardware
 
 To inspect the model in RViz with no gripper attached (no `ros2_control`), use the visualization-only launch — `robot_state_publisher`, RViz, and a `joint_state_publisher_gui` slider:
 
 ```bash
-ros2 launch robotiq_description view_gripper.launch.py
+ros2 launch robotiq_description view_gripper.launch.py gripper_model:=2f_85  # or 2f_140, hand_e
 ```
 
-Drag the `robotiq_85_left_knuckle_joint` slider; the five finger joints follow it via URDF `mimic` (≈ `0.0` open → ~`0.8` closed).
+`gripper_model` picks the description and the RViz view; `model:=` and `rvizconfig:=` still override them. On the 2F-85, drag the `robotiq_85_left_knuckle_joint` slider; the five finger joints follow it via URDF `mimic` (≈ `0.0` open → ~`0.8` closed).
 
 Goal-based commanding also works without hardware: `robotiq_control.launch.py use_fake_hardware:=true launch_rviz:=true` brings up all four controllers against `mock_components/GenericSystem`, and `gripper_cmd` goals drive the model — the five finger joints follow the knuckle via URDF `mimic`, exactly as on hardware. Use the slider above when you want to pose the model by hand instead.
 

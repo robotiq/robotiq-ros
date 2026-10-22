@@ -180,7 +180,7 @@ GripperParameters parseParameters(const hardware_interface::HardwareInfo& info, 
       const std::optional<Robotiq::DeviceProfile> named = profileNamed(profile->second);
       if(!named)
       {
-         throw std::invalid_argument("gripper_profile must be 2f_85 or hand_e, got '" + profile->second + "'");
+         throw std::invalid_argument("gripper_profile must be 2f_85, 2f_140 or hand_e, got '" + profile->second + "'");
       }
       parameters.profile = *named;
    }

@@ -282,7 +282,17 @@ def test_stall_velocity_threshold_is_left_to_the_launch(config):
     assert raw["stall_velocity_threshold"] == STALL_VELOCITY_PLACEHOLDER
 
 
-PER_MODEL_TABLES = ("GRIPPER_GOAL_TOLERANCES", "GRIPPER_STALL_VELOCITY_THRESHOLDS")
+PER_MODEL_TABLES = (
+    "GRIPPER_GOAL_TOLERANCES",
+    "GRIPPER_STALL_VELOCITY_THRESHOLDS",
+    "GRIPPER_RVIZ_CONFIGS",
+)
+
+
+@pytest.mark.parametrize("gripper_model", GRIPPER_MODELS)
+def test_every_gripper_model_s_rviz_config_ships(gripper_model):
+    name = load_launch_module().GRIPPER_RVIZ_CONFIGS[gripper_model]
+    assert (Path(__file__).parents[1] / "rviz" / name).is_file()
 
 
 @pytest.mark.parametrize("table", PER_MODEL_TABLES)
@@ -523,7 +533,7 @@ def spawned_controllers(distro, monkeypatch, **launch_arguments):
 
 # The gripper_profile each model's description hands the driver, the 2F-85's
 # when it sets none. Humble EOL: delete.
-MODEL_PROFILES = {"2f_85": "2f_85", "2f_140": "2f_85", "hand_e": "hand_e"}
+MODEL_PROFILES = {"2f_85": "2f_85", "2f_140": "2f_140", "hand_e": "hand_e"}
 
 
 # Humble EOL: delete.
