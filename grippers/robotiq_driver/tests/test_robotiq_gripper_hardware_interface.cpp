@@ -726,24 +726,20 @@ namespace {
 // pluginlib finds the hardware interface through the ament index in the install
 // tree, so the tests that load it by name need this build's install prefix on
 // AMENT_PREFIX_PATH. Nothing else provides it — not ctest, not an IDE, not a
-// shell — and prepending a prefix that is already there costs nothing.
-void announceTheInstalledPlugin()
+// shell — and prepending a prefix that is already there costs nothing. A global
+// environment runs it once, before the first test; main() is the shared one
+// from robotiq_test_support.
+class InstalledPluginEnvironment : public testing::Environment
 {
-   const char* const search_path = std::getenv("AMENT_PREFIX_PATH");
-   const std::string prefix = ROBOTIQ_DRIVER_INSTALL_PREFIX;
-   setenv("AMENT_PREFIX_PATH", (search_path ? prefix + ":" + search_path : prefix).c_str(), 1);
-}
+public:
+   void SetUp() override
+   {
+      const char* const search_path = std::getenv("AMENT_PREFIX_PATH");
+      const std::string prefix = ROBOTIQ_DRIVER_INSTALL_PREFIX;
+      setenv("AMENT_PREFIX_PATH", (search_path ? prefix + ":" + search_path : prefix).c_str(), 1);
+   }
+};
+const testing::Environment* const installed_plugin_environment =
+   testing::AddGlobalTestEnvironment(new InstalledPluginEnvironment);
 } // namespace
 } // namespace robotiq_driver::test
-
-// main() for the whole package suite: the test files link into one binary, and
-// rclcpp has to be up before any node is constructed.
-int main(int argc, char** argv)
-{
-   robotiq_driver::test::announceTheInstalledPlugin();
-   rclcpp::init(argc, argv);
-   testing::InitGoogleTest(&argc, argv);
-   const int result = RUN_ALL_TESTS();
-   rclcpp::shutdown();
-   return result;
-}

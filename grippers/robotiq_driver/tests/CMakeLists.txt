@@ -2,6 +2,7 @@
 find_package(ament_cmake_gtest REQUIRED)
 find_package(ament_cmake_gmock REQUIRED)
 find_package(ament_lint_auto REQUIRED)
+find_package(robotiq_test_support REQUIRED)
 
 ament_lint_auto_find_test_dependencies()
 
@@ -29,4 +30,5 @@ target_link_libraries(
     ${PROJECT_NAME}_tests
     robotiq_driver
     hardware_interface::hardware_interface
+    robotiq_test_support::rclcpp_gtest_main
 )
