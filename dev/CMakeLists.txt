@@ -20,9 +20,9 @@ find_package(ament_cmake REQUIRED)
 # after the ones it depends on — see the alias below.
 set(ROBOTIQ_IDE_PACKAGES
   ../robotiq_tsf
+  ../grippers/robotiq_test_support
   ../grippers/robotiq_driver          # brings extern/grippers (the SDK) with it
   ../grippers/robotiq_msgs
-  ../grippers/robotiq_test_support
   ../grippers/robotiq_controllers
   ../grippers/robotiq_hardware_tests
 )

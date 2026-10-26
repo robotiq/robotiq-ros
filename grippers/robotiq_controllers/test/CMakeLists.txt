@@ -11,7 +11,11 @@ target_include_directories(test_ros2_control_compat
 )
 
 find_package(rclcpp REQUIRED)
-find_package(robotiq_test_support REQUIRED)
+# Already present when this package is configured as part of a larger project
+# (the dev/ IDE aggregate); found through its install prefix otherwise.
+if(NOT TARGET robotiq_test_support::rclcpp_gtest_main)
+  find_package(robotiq_test_support REQUIRED)
+endif()
 
 ament_add_gtest(test_gripper_status test_gripper_status.cpp)
 target_include_directories(test_gripper_status

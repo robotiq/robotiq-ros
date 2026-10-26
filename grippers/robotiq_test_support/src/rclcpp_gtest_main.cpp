@@ -27,19 +27,18 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 // main() for test suites that create nodes: rclcpp is up before the first test
-// and down after the last. Shutdown runs on scope exit so an exception unwinding
-// past RUN_ALL_TESTS() still reaches it: rmw_zenoh_cpp panics at process exit if
-// the context is still up.
+// and down after the last, because rmw_zenoh_cpp panics at process exit if the
+// context is still up.
 
 #include <gtest/gtest.h>
 
 #include <rclcpp/utilities.hpp>
-#include <rcpputils/scope_exit.hpp>
 
 int main(int argc, char** argv)
 {
    testing::InitGoogleTest(&argc, argv);
    rclcpp::init(argc, argv);
-   RCPPUTILS_SCOPE_EXIT(rclcpp::shutdown());
-   return RUN_ALL_TESTS();
+   const int result = RUN_ALL_TESTS();
+   rclcpp::shutdown();
+   return result;
 }

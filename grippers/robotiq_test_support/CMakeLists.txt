@@ -2,12 +2,14 @@ cmake_minimum_required(VERSION 3.8)
 project(robotiq_test_support)
 
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_gtest REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rcpputils REQUIRED)
 
 # An INTERFACE target that carries the source: the main() compiles into every
-# test executable that links it, against that executable's own gtest, so no
-# gtest flavour or link order is baked in here.
+# test executable that links it, the way ament_cmake_gtest compiles gtest_vendor's
+# sources into each test. The consumer is an ament_add_gtest/gmock target, which
+# is what brings gtest's headers and library.
 add_library(rclcpp_gtest_main INTERFACE)
 add_library(${PROJECT_NAME}::rclcpp_gtest_main ALIAS rclcpp_gtest_main)
 target_sources(rclcpp_gtest_main INTERFACE
@@ -22,7 +24,7 @@ target_link_libraries(rclcpp_gtest_main INTERFACE
 install(FILES src/rclcpp_gtest_main.cpp DESTINATION share/${PROJECT_NAME}/src)
 install(TARGETS rclcpp_gtest_main EXPORT export_${PROJECT_NAME})
 ament_export_targets(export_${PROJECT_NAME})
-ament_export_dependencies(rclcpp rcpputils)
+ament_export_dependencies(ament_cmake_gtest rclcpp rcpputils)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
