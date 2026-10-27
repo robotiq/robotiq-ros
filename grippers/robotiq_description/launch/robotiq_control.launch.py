@@ -267,6 +267,9 @@ def xacro_command():
             "gripper_model:=",
             LaunchConfiguration("gripper_model"),
             " ",
+            "hand_e_stroke:=",
+            LaunchConfiguration("hand_e_stroke", default="0.050"),
+            " ",
             "use_fake_hardware:=",
             LaunchConfiguration("use_fake_hardware"),
             " ",
@@ -325,6 +328,14 @@ def generate_launch_description():
             default_value="2f_85",
             choices=sorted(GRIPPER_JOINTS),
             description="Gripper the description and the controller are built for",
+        )
+    )
+    args.append(
+        launch.actions.DeclareLaunchArgument(
+            name="hand_e_stroke",
+            default_value="0.050",
+            choices=["0.050", "0.100"],
+            description="Hand-E total opening in metres; the other models ignore it",
         )
     )
     args.append(

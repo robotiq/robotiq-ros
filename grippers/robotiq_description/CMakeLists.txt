@@ -25,6 +25,7 @@ if(BUILD_TESTING)
   # Expands the xacro, so it needs the package's own share dir on the ament index.
   ament_add_pytest_test(test_ros2_control_urdf test/test_ros2_control_urdf.py TIMEOUT 120)
   ament_add_pytest_test(test_hand_e_c10_urdf test/test_hand_e_c10_urdf.py TIMEOUT 120)
+  ament_add_pytest_test(test_hand_e_stroke_urdf test/test_hand_e_stroke_urdf.py TIMEOUT 120)
 endif()
 
 ament_package()
