@@ -6,8 +6,7 @@
 #   - codespell     : spelling
 #   - standard hooks: whitespace/eol/yaml/etc.
 #
-# Scope is an explicit allow-list (top-level `files`) of the trees we own; the
-# extern/tactile_sensors submodule is intentionally excluded (not ours to lint).
+# Scope is an explicit allow-list (top-level `files`) of the trees we own.
 #
 # To use locally:
 #
@@ -20,9 +19,8 @@
 # clang-format is pinned to v19.1.1 to match the clang-format-19 mandated by the
 # Robotiq C++ conventions.
 
-# Only lint the trees we own; keep the extern/ submodule and vendored
-# third-party sources out.
-files: '^(grippers/|robotiq_tsf/|mcp/|docker/|\.github/|[^/]+$)'
+# Only lint the trees we own; keep vendored third-party sources out.
+files: '^(grippers/|robotiq_tsf/|robotiq_tactile_sdk_vendor/|mcp/|docker/|\.github/|[^/]+$)'
 exclude: '^robotiq_tsf/third_party/'
 
 repos:

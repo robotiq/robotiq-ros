@@ -34,10 +34,8 @@
   <!-- Quaternion algebra in the AHRS/algorithms library (header-only). -->
   <depend>eigen</depend>
 
-  <!-- SDK-backed poller (poll_data_sdk_node) links the tactile_sensors SDK,
-       which uses libserialport. rosdep has no runtime-only key, so the -dev
-       package is the exec dependency too. -->
-  <depend>libserialport-dev</depend>
+  <!-- The tactile sensors SDK, linked by poll_data_sdk_node. -->
+  <depend>robotiq_tactile_sdk_vendor</depend>
 
   <!-- tactile_viz_node (Python RViz visualization) + its launch/rviz. -->
   <exec_depend>rclpy</exec_depend>
@@ -53,6 +51,7 @@
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>ament_index_python</test_depend>
   <test_depend>python3-pytest</test_depend>
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

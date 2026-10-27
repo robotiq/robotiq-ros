@@ -20,3 +20,5 @@ target_link_libraries(${PROJECT_NAME}_tests poll_data_sdk_lib)
 # needs this package's generated Python messages, hence the deferred import
 # path added by colcon at test time).
 ament_add_pytest_test(test_tactile_viz test_tactile_viz.py TIMEOUT 120)
+
+ament_add_pytest_test(test_launch_poller test_launch_poller.py)

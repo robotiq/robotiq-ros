@@ -5,6 +5,12 @@
 # beside this file stops it descending — and the real build is still colcon
 # building each ament package on its own. Nothing here affects CI or Docker.
 #
+# The SDK vendor packages fetch and build their SDK at build time, too late for
+# the packages here to find it at configure time. Build them with colcon and
+# source the result first:
+#
+#   colcon build --packages-select robotiq_grippers_sdk_vendor robotiq_tactile_sdk_vendor
+#   source install/setup.bash
 #   cmake --preset ide && cmake --build --preset ide-install && ctest --preset ide
 #
 # or point the IDE at dev/CMakeLists.txt and pick the "ide" preset (Qt Creator:
@@ -21,7 +27,7 @@ find_package(ament_cmake REQUIRED)
 set(ROBOTIQ_IDE_PACKAGES
   ../robotiq_tsf
   ../grippers/robotiq_test_support
-  ../grippers/robotiq_driver          # brings extern/grippers (the SDK) with it
+  ../grippers/robotiq_driver
   ../grippers/robotiq_msgs
   ../grippers/robotiq_controllers
   ../grippers/robotiq_hardware_tests

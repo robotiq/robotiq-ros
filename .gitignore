@@ -14,3 +14,8 @@ robotiq_tsf/build/
 
 # host-specific cell wiring, copied from mcp/grippers.yaml.example
 mcp/grippers.yaml
+
+# SDK checkouts that clones from before the vendor packages still carry.
+# extern/COLCON_IGNORE keeps colcon from building them.
+/extern/*
+!/extern/COLCON_IGNORE
