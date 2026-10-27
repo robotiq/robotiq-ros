@@ -11,6 +11,11 @@ target_include_directories(test_ros2_control_compat
 )
 
 find_package(rclcpp REQUIRED)
+# Already present when this package is configured as part of a larger project
+# (the dev/ IDE aggregate); found through its install prefix otherwise.
+if(NOT TARGET robotiq_test_support::rclcpp_gtest_main)
+  find_package(robotiq_test_support REQUIRED)
+endif()
 
 ament_add_gtest(test_gripper_status test_gripper_status.cpp)
 target_include_directories(test_gripper_status
@@ -34,6 +39,7 @@ target_link_libraries(test_gripper_status_broadcaster
   hardware_interface::hardware_interface
   rclcpp::rclcpp
   ${robotiq_msgs_TARGETS}
+  robotiq_test_support::rclcpp_gtest_main
 )
 
 ament_add_gtest(test_normalized_position_broadcaster test_normalized_position_broadcaster.cpp)
@@ -46,6 +52,7 @@ target_link_libraries(test_normalized_position_broadcaster
   hardware_interface::hardware_interface
   rclcpp::rclcpp
   ${sensor_msgs_TARGETS}
+  robotiq_test_support::rclcpp_gtest_main
 )
 
 ament_add_gtest(test_robotiq_activation_controller test_robotiq_activation_controller.cpp)
@@ -57,6 +64,7 @@ target_link_libraries(test_robotiq_activation_controller
   controller_interface::controller_interface
   hardware_interface::hardware_interface
   rclcpp::rclcpp
+  robotiq_test_support::rclcpp_gtest_main
 )
 
 ament_add_gtest(test_object_status_goal test_object_status_goal.cpp)
@@ -86,6 +94,7 @@ if(gripper_controllers_FOUND)
     rclcpp::rclcpp
     rclcpp_action::rclcpp_action
     ${robotiq_msgs_TARGETS}
+    robotiq_test_support::rclcpp_gtest_main
   )
 endif()
 
@@ -103,5 +112,6 @@ if(parallel_gripper_controller_FOUND)
     rclcpp::rclcpp
     rclcpp_action::rclcpp_action
     ${robotiq_msgs_TARGETS}
+    robotiq_test_support::rclcpp_gtest_main
   )
 endif()

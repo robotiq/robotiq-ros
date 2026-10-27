@@ -35,6 +35,7 @@ jobs:
           package-name: >-
             robotiq_driver
             robotiq_msgs
+            robotiq_test_support
             robotiq_controllers
             robotiq_description
             robotiq_hardware_tests
@@ -58,6 +59,7 @@ jobs:
           package-name: >-
             robotiq_driver
             robotiq_msgs
+            robotiq_test_support
             robotiq_controllers
             robotiq_description
             robotiq_hardware_tests

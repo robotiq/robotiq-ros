@@ -171,12 +171,3 @@ TEST_F(NormalizedPositionBroadcasterTest, refuses_to_configure_without_a_closed_
    EXPECT_NE(lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE, broadcaster_->configure().id());
 }
 } // namespace robotiq_controllers::test
-
-int main(int argc, char** argv)
-{
-   ::testing::InitGoogleTest(&argc, argv);
-   rclcpp::init(argc, argv);
-   const int result = RUN_ALL_TESTS();
-   rclcpp::shutdown();
-   return result;
-}

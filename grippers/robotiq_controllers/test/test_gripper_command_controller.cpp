@@ -61,14 +61,3 @@ INSTANTIATE_TYPED_TEST_SUITE_P(GripperCommandController,
                                NamedByAction);
 } // namespace
 } // namespace robotiq_controllers::test
-
-// Not gtest_main: the tests create nodes, so rclcpp must be up before the first
-// and down after the last.
-int main(int argc, char** argv)
-{
-   ::testing::InitGoogleTest(&argc, argv);
-   rclcpp::init(argc, argv);
-   const int result = RUN_ALL_TESTS();
-   rclcpp::shutdown();
-   return result;
-}

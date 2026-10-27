@@ -72,6 +72,7 @@ jobs:
             robotiq_tsf
             robotiq_driver
             robotiq_msgs
+            robotiq_test_support
             robotiq_controllers
             robotiq_description
             robotiq_hardware_tests

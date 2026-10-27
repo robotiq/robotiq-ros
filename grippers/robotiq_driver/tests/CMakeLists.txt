@@ -2,6 +2,11 @@
 find_package(ament_cmake_gtest REQUIRED)
 find_package(ament_cmake_gmock REQUIRED)
 find_package(ament_lint_auto REQUIRED)
+# Already present when this package is configured as part of a larger project
+# (the dev/ IDE aggregate); found through its install prefix otherwise.
+if(NOT TARGET robotiq_test_support::rclcpp_gtest_main)
+  find_package(robotiq_test_support REQUIRED)
+endif()
 
 ament_lint_auto_find_test_dependencies()
 
@@ -29,4 +34,5 @@ target_link_libraries(
     ${PROJECT_NAME}_tests
     robotiq_driver
     hardware_interface::hardware_interface
+    robotiq_test_support::rclcpp_gtest_main
 )

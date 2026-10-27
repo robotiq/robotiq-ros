@@ -269,6 +269,7 @@ ros2 action send_goal /robotiq_gripper_controller/gripper_cmd \
 |---|---|
 | `robotiq_driver` | `ros2_control` hardware interface, over the `extern/grippers` SDK (Modbus RTU on serial) |
 | `robotiq_msgs` | Messages the driver and controllers publish |
+| `robotiq_test_support` | Shared gtest `main()` for the suites that create nodes |
 | `robotiq_controllers` | Gripper action controller, activation controller, and the status broadcaster |
 | `robotiq_description` | URDF/xacro, meshes, RViz + bringup launch |
 | `robotiq_hardware_tests` | Hardware integration tests |
