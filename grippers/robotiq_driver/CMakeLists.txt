@@ -141,13 +141,14 @@ install(
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}          # include
 )
 
-# Install our library.
+# Install our library. Not CMAKE_INSTALL_LIBDIR: Debian package builds set it
+# to lib/<multiarch>, where neither ament nor pluginlib looks.
 install(
   TARGETS robotiq_driver
   EXPORT robotiq_driver_targets
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}      # lib
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}      # lib
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}      # bin
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin
   INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} # include
 )
 
