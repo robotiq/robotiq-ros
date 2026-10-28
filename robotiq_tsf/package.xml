@@ -5,11 +5,10 @@
   <!-- Humble EOL: simplify the distro list below. -->
   <description>ROS 2 tactile sensing package for the Robotiq TSF-85 (Humble, Jazzy, Lyrical).</description>
 
-  <maintainer email="jean-philippe.roberge@etsmtl.ca">Jean-Philippe Roberge</maintainer>
-  <maintainer email="jenkwia@example.com">Jen Kwia</maintainer>
+  <maintainer email="ros@robotiq.com">Robotiq</maintainer>
 
   <author email="jean-philippe.roberge@etsmtl.ca">Jean-Philippe Roberge</author>
-  <author email="jenkwia@example.com">Jen Kwia</author>
+  <author email="j.kwiatkowski@robotiq.com">Jen Kwiatkowski</author>
 
   <license>BSD-3-Clause</license>
   <!-- Vendored x-io Fusion AHRS sources. -->

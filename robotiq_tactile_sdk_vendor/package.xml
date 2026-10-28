@@ -4,7 +4,7 @@
   <name>robotiq_tactile_sdk_vendor</name>
   <version>1.3.0</version>
   <description>Builds the Robotiq tactile sensors C++ SDK (github.com/robotiq/tactile_sensors) at a pinned release, for the ROS packages that use it.</description>
-  <maintainer email="e.barnett@robotiq.com">Eric Barnett</maintainer>
+  <maintainer email="ros@robotiq.com">Robotiq</maintainer>
   <license>BSD-3-Clause</license>
   <url type="repository">https://github.com/robotiq/robotiq-ros</url>
   <url type="bugtracker">https://github.com/robotiq/robotiq-ros/issues</url>

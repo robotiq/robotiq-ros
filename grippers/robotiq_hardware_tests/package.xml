@@ -4,7 +4,7 @@
   <name>robotiq_hardware_tests</name>
   <version>1.3.0</version>
   <description>ROS2 driver for the Robotiq gripper.</description>
-  <maintainer email="noreply@robotiq.com">Robotiq</maintainer>
+  <maintainer email="ros@robotiq.com">Robotiq</maintainer>
   <license>BSD-3-Clause</license>
   <url type="repository">https://github.com/robotiq/robotiq-ros</url>
   <url type="bugtracker">https://github.com/robotiq/robotiq-ros/issues</url>
