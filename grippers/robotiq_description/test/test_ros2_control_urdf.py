@@ -59,6 +59,7 @@ MODELS = {
     "robotiq_2f_85_gripper.urdf.xacro": "robotiq_85_left_knuckle_joint",
     "robotiq_2f_140_gripper.urdf.xacro": "finger_joint",
     "robotiq_hand_e_gripper.urdf.xacro": "hande_left_finger_joint",
+    "robotiq_hand_e_c10_gripper.urdf.xacro": "hande_c10_finger_1_joint",
 }
 
 MOCK_PLUGIN = "mock_components/GenericSystem"
@@ -72,6 +73,7 @@ MIMIC_JOINT_COUNTS = {
     "robotiq_2f_85_gripper.urdf.xacro": 5,
     "robotiq_2f_140_gripper.urdf.xacro": 5,
     "robotiq_hand_e_gripper.urdf.xacro": 1,
+    "robotiq_hand_e_c10_gripper.urdf.xacro": 2,
 }
 
 # Exported by the driver at runtime; needed from the URDF under mock hardware.
@@ -135,7 +137,11 @@ def joints_of(ros2_control):
 @requires_xacro
 @pytest.mark.parametrize(
     "gripper_model,joint",
-    [("2f_140", "finger_joint"), ("hand_e", "hande_left_finger_joint")],
+    [
+        ("2f_140", "finger_joint"),
+        ("hand_e", "hande_left_finger_joint"),
+        ("hand_e_c10", "hande_c10_finger_1_joint"),
+    ],
 )
 def test_gripper_model_selects_the_description_from_the_launch_default(
     gripper_model, joint
@@ -247,6 +253,7 @@ def test_baudrate_reaches_the_driver(model):
         ("robotiq_2f_85_gripper.urdf.xacro", "2f_85"),
         ("robotiq_2f_140_gripper.urdf.xacro", "2f_85"),
         ("robotiq_hand_e_gripper.urdf.xacro", "hand_e"),
+        ("robotiq_hand_e_c10_gripper.urdf.xacro", "hand_e_c10"),
     ],
 )
 def test_every_plugin_gets_the_models_sdk_profile(model, profile):
@@ -261,21 +268,36 @@ def test_the_hand_e_driver_closes_at_one_finger_s_travel():
 
 
 @requires_xacro
-def test_the_hand_e_driver_s_full_speed_is_the_finger_joint_s_limit():
+def test_the_hand_e_c10_driver_closes_at_one_finger_s_travel():
+    ros2_control = expand("robotiq_hand_e_c10_gripper.urdf.xacro", False)
+    assert float(hardware_param(ros2_control, "gripper_closed_position")) == 0.0192
+
+
+@requires_xacro
+@pytest.mark.parametrize(
+    "model,joint",
+    [
+        ("robotiq_hand_e_gripper.urdf.xacro", "hande_left_finger_joint"),
+        ("robotiq_hand_e_c10_gripper.urdf.xacro", "hande_c10_finger_1_joint"),
+    ],
+)
+def test_the_prismatic_driver_s_full_scale_is_the_finger_joint_s_limit(model, joint):
     result = subprocess.run(
-        [
-            "xacro",
-            str(URDF_DIR / "robotiq_hand_e_gripper.urdf.xacro"),
-            "use_fake_hardware:=false",
-        ],
+        ["xacro", str(URDF_DIR / model), "use_fake_hardware:=false"],
         capture_output=True,
         text=True,
         check=True,
     )
     robot = ET.fromstring(result.stdout)
-    limit = robot.find("joint[@name='hande_left_finger_joint']/limit")
-    max_speed = hardware_param(robot.find("ros2_control"), "gripper_max_speed")
+    limit = robot.find(f"joint[@name='{joint}']/limit")
+    ros2_control = robot.find("ros2_control")
+    max_speed = hardware_param(ros2_control, "gripper_max_speed")
     assert float(max_speed) == float(limit.get("velocity"))
+    if "c10" in model:
+        # The Hand-E's 185 N is above its joint's 180 N; the C10's driver takes the joint's limit.
+        assert float(hardware_param(ros2_control, "gripper_max_force")) == float(
+            limit.get("effort")
+        )
 
 
 @requires_xacro
@@ -305,6 +327,15 @@ def test_the_hand_e_joint_is_0_open_and_closes_as_it_grows():
 
     assert pad_gap(0.0) == pytest.approx(0.050)
     assert pad_gap(0.025) == pytest.approx(0.0)
+
+
+@requires_xacro
+def test_the_hand_e_c10_followers_are_declared_only_in_simulation():
+    followers = {"hande_c10_finger_2_joint", "hande_c10_finger_3_joint"}
+    model = "robotiq_hand_e_c10_gripper.urdf.xacro"
+    assert followers <= joints_of(expand(model, False, TOPIC_BASED_ARG))
+    assert followers.isdisjoint(joints_of(expand(model, False)))
+    assert followers.isdisjoint(joints_of(expand(model, True)))
 
 
 @requires_xacro
