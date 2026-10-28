@@ -158,6 +158,8 @@ Descriptions ship for the **2F-85**, the **2F-140** and the **Hand-E**; `robotiq
 
 The Hand-E's `hande_left_finger_joint` is prismatic: that finger's travel in metres, `0.0` open → `0.025` closed, the same direction as the 2F knuckle. The right finger mimics it.
 
+The **Hand-E C10** (three concentric fingers, 120° apart, sliding radially toward the axis) ships as a description without control support: `xacro robotiq_hand_e_c10_gripper.urdf.xacro`, or `gripper_model:=hand_e_c10` through `robotiq_gripper.urdf.xacro`. It carries links, joints, meshes and inertia, for visualization, planning and URDF-importing simulators: `hande_c10_finger_1_joint` is the driven one (that finger's travel in metres, `0.0` open → `0.0192` closed) and the other two fingers mimic it. It has no `ros2_control` block, so there is no driver, mock or simulated control yet (hardware support is tracked in #150).
+
 The driver runs on the [Robotiq C++ grippers SDK](https://github.com/robotiq/grippers), which the `robotiq_grippers_sdk_vendor` package fetches and builds at a pinned release. The SDK owns the serial link and the Modbus exchange (one FC 0x17 transaction per cycle, on its own thread); `robotiq_driver` is the `ros2_control` layer above it, and its `read()` / `write()` copy the SDK's process image rather than touching the bus.
 
 **Robotiq maintains this driver.** It started from PickNik Robotics'
