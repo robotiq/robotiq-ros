@@ -429,6 +429,27 @@ def test_launch_forwards_the_gripper_model_to_xacro():
     assert "gripper_model:=2f_140" in rendered
 
 
+def test_launch_forwards_the_hand_e_stroke_to_xacro():
+    launch_module = load_launch_module()
+    command = launch_module.xacro_command()
+    context = LaunchContext()
+    context.launch_configurations.update(
+        model="/x/gripper.urdf.xacro",
+        gripper_model="hand_e",
+        use_fake_hardware="true",
+        com_port="/dev/null",
+        baudrate="115200",
+        sim_topic_based="false",
+        sim_joint_commands_topic="/sim/joint_commands",
+        sim_joint_states_topic="/sim/joint_states",
+    )
+    rendered = "".join(s.perform(context) for s in command.command)
+    assert "hand_e_stroke:=0.050" in rendered
+    context.launch_configurations["hand_e_stroke"] = "0.100"
+    rendered = "".join(s.perform(context) for s in command.command)
+    assert "hand_e_stroke:=0.100" in rendered
+
+
 @pytest.mark.parametrize("config", ALL_CONFIGS + MOCK_CONFIGS + TOPIC_BASED_CONFIGS)
 def test_controller_type_matches_distro(config):
     controllers = load(config)["controller_manager"]["ros__parameters"]
@@ -528,11 +549,40 @@ MODEL_PROFILES = {"2f_85": "2f_85", "2f_140": "2f_85", "hand_e": "hand_e"}
 
 # Humble EOL: delete.
 def macro_closed_position(gripper_model):
-    """The model's gripper_closed_position as its macro declares it."""
-    xacro = (
-        Path(__file__).parents[1] / "urdf" / f"robotiq_{gripper_model}_macro.urdf.xacro"
-    ).read_text()
-    return re.search(r"gripper_closed_position:=([0-9.]+)", xacro).group(1)
+    """The model's gripper_closed_position as its description hands it to the driver: the top-level xacro,
+    expanded, read the way the launch reads it (a macro may compute the value rather than declare it).
+    """
+    launch_module = load_launch_module()
+    result = subprocess.run(
+        [
+            "xacro",
+            str(
+                Path(__file__).parents[1]
+                / "urdf"
+                / f"robotiq_{gripper_model}_gripper.urdf.xacro"
+            ),
+            "use_fake_hardware:=false",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return launch_module.closed_position_from_description(
+        result.stdout, launch_module.GRIPPER_JOINTS[gripper_model]
+    )
+
+
+# Humble EOL: delete.
+@requires_launch
+@pytest.mark.parametrize(
+    "gripper_model,expected",
+    [("2f_85", 0.7929), ("2f_140", 0.695), ("hand_e", 0.025)],
+)
+def test_macro_closed_position_reads_the_expanded_description(gripper_model, expected):
+    # The Hand-E computes its value from the stroke: the helper reads it as the launch does.
+    assert float(macro_closed_position(gripper_model)) == pytest.approx(
+        expected, rel=1e-3
+    )
 
 
 def resolved(config, joint=JOINT, gripper_model="2f_85"):

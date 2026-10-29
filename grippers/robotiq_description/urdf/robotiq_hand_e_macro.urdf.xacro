@@ -1,5 +1,9 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://wiki.ros.org/xacro" name="robotiq_gripper">
+    <!-- Total opening, in metres: 0.050 (the standard Hand-E) or 0.100. Declared
+         here so a wrapper or the command line sets it with hand_e_stroke:=0.100;
+         as with any xacro arg, the first declaration wins. -->
+    <xacro:arg name="hand_e_stroke" default="0.050" />
     <xacro:macro name="robotiq_gripper" params="
         name
         prefix
@@ -21,8 +25,9 @@
         gripper_force_multiplier:=0.5
         gripper_max_speed:=0.075
         gripper_max_force:=185.0
-        gripper_closed_position:=0.025
-        tcp_z_offset:=0.1325">
+        gripper_closed_position:=''
+        tcp_z_offset:=0.1325
+        stroke:=$(arg hand_e_stroke)">
 
         <!-- PickNik's names for the topic-based path, released in 1.1.0 and
              deprecated since 1.2.0. sim_isaac keeps its old /isaac_joint_* topic
@@ -34,7 +39,17 @@
         <xacro:property name="commands_topic" value="${isaac_joint_commands or ('/isaac_joint_commands' if sim_isaac else sim_joint_commands_topic)}"/>
         <xacro:property name="states_topic" value="${isaac_joint_states or ('/isaac_joint_states' if sim_isaac else sim_joint_states_topic)}"/>
 
-        <xacro:property name="stroke" value="0.050"/>
+        <!-- stroke is the opening between the fingers, half of it each finger's
+             travel. The 0.050 version keeps its own meshes; the 0.100 one has a
+             different base and longer fingers. -->
+        <xacro:if value="${stroke not in [0.050, 0.100]}">
+            ${xacro.fatal('the Hand-E stroke must be 0.050 or 0.100 m, got ' + str(stroke))}
+        </xacro:if>
+        <xacro:property name="long_stroke" value="${stroke &gt; 0.075}"/>
+        <xacro:property name="mesh_dir" value="${'hand_e_100' if long_stroke else 'hand_e'}"/>
+        <xacro:property name="visual_ext" value="${'stl' if long_stroke else 'dae'}"/>
+        <!-- Position the driver maps to a fully closed gripper: one finger's travel. -->
+        <xacro:property name="closed_position" value="${stroke/2 if gripper_closed_position == '' else gripper_closed_position}"/>
         <!-- One finger's top speed: the gap closes at 0.150 m/s with both moving. -->
         <xacro:property name="finger_speed" value="0.075"/>
 
@@ -54,18 +69,30 @@
                 gripper_force_multiplier="${gripper_force_multiplier}"
                 gripper_max_speed="${gripper_max_speed}"
                 gripper_max_force="${gripper_max_force}"
-                gripper_closed_position="${gripper_closed_position}"/>
+                gripper_closed_position="${closed_position}"/>
         </xacro:if>
 
         <link name="${prefix}hand_e_base_link">
-            <inertial>
-                <origin xyz="0 0 0.04607" rpy="0 0 0" />
-                <mass value="0.86387" />
-                <inertia ixx="1017560E-9" ixy="0" ixz="2235E-9" iyy="1028041E-9" iyz="0" izz="489810E-9" />
-            </inertial>
+            <!-- Base only. 0.050: the vendor's mass and inertia. 0.100: the 0.050 mass scaled by the datasheet weights
+                 (1.1 kg / 1.0 kg): 0.86387 x 1.1 = 0.95026 kg. Inertia: the CAD tensor (2800 kg/m3 x the CAD volumes,
+                 0.92566 kg) scaled by the same ratio to that mass; the centre of mass is the CAD's. -->
+            <xacro:unless value="${long_stroke}">
+                <inertial>
+                    <origin xyz="0 0 0.04607" rpy="0 0 0" />
+                    <mass value="0.86387" />
+                    <inertia ixx="1017560E-9" ixy="0" ixz="2235E-9" iyy="1028041E-9" iyz="0" izz="489810E-9" />
+                </inertial>
+            </xacro:unless>
+            <xacro:if value="${long_stroke}">
+                <inertial>
+                    <origin xyz="0 0.00002 0.0504" rpy="0 0 0" />
+                    <mass value="0.95026" />
+                    <inertia ixx="1178590E-9" ixy="16E-9" ixz="-56E-9" iyy="1363484E-9" iyz="805E-9" izz="711660E-9" />
+                </inertial>
+            </xacro:if>
             <visual>
                 <geometry>
-                    <mesh filename="package://robotiq_description/meshes/visual/hand_e/hand-e.dae" />
+                    <mesh filename="package://robotiq_description/meshes/visual/${mesh_dir}/hand-e.${visual_ext}" />
                 </geometry>
                 <material name="">
                     <color rgba="0.1 0.1 0.1 1" />
@@ -73,7 +100,7 @@
             </visual>
             <collision>
                 <geometry>
-                    <mesh filename="package://robotiq_description/meshes/collision/hand_e/hand-e.stl" />
+                    <mesh filename="package://robotiq_description/meshes/collision/${mesh_dir}/hand-e.stl" />
                 </geometry>
             </collision>
         </link>
@@ -86,7 +113,7 @@
         <link name="${prefix}hande_left_finger">
             <visual>
                 <geometry>
-                    <mesh filename="package://robotiq_description/meshes/visual/hand_e/left_finger.dae" />
+                    <mesh filename="package://robotiq_description/meshes/visual/${mesh_dir}/left_finger.${visual_ext}" />
                 </geometry>
                 <material name="">
                     <color rgba="0.7 0.7 0.7 1" />
@@ -94,14 +121,14 @@
             </visual>
             <collision>
                 <geometry>
-                    <mesh filename="package://robotiq_description/meshes/collision/hand_e/left_finger.stl" />
+                    <mesh filename="package://robotiq_description/meshes/collision/${mesh_dir}/left_finger.stl" />
                 </geometry>
             </collision>
         </link>
         <link name="${prefix}hande_right_finger">
             <visual>
                 <geometry>
-                    <mesh filename="package://robotiq_description/meshes/visual/hand_e/right_finger.dae" />
+                    <mesh filename="package://robotiq_description/meshes/visual/${mesh_dir}/right_finger.${visual_ext}" />
                 </geometry>
                 <material name="">
                     <color rgba="0.7 0.7 0.7 1" />
@@ -109,7 +136,7 @@
             </visual>
             <collision>
                 <geometry>
-                    <mesh filename="package://robotiq_description/meshes/collision/hand_e/right_finger.stl" />
+                    <mesh filename="package://robotiq_description/meshes/collision/${mesh_dir}/right_finger.stl" />
                 </geometry>
             </collision>
         </link>
