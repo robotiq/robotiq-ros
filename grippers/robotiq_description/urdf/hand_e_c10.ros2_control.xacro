@@ -59,7 +59,10 @@
                     <state_interface name="gripper_fault_severity"/>
                 </xacro:unless>
             </joint>
-            <xacro:if value="${sim_topic_based or sim_gazebo}">
+            <!-- The followers are declared for Gazebo only, as proposed for #118: under sim_topic_based a declared mimic joint
+                 makes the simulator's command name more joints than it gives positions for. /joint_states carries them
+                 through <mimic> in robot_state_publisher. -->
+            <xacro:if value="${sim_gazebo}">
                 <xacro:robotiq_sim_mimic_joint name="${prefix}hande_c10_finger_2_joint" sim_gazebo="${sim_gazebo}"/>
                 <xacro:robotiq_sim_mimic_joint name="${prefix}hande_c10_finger_3_joint" sim_gazebo="${sim_gazebo}"/>
             </xacro:if>

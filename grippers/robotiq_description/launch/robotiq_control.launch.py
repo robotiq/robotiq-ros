@@ -178,8 +178,8 @@ GRIPPER_JOINTS = {
 }
 
 # goal_tolerance, in the driven joint's unit: radians on the 2F models, metres
-# on the Hand-E and the C10. The stock check ends a goal once inside it even when the
-# object status decides, so it has to be small against the stroke.
+# on the Hand-E and the C10. The stock check ends a goal once inside it even
+# when the object status decides, so it has to be small against the stroke.
 GRIPPER_GOAL_TOLERANCES = {
     "2f_85": "0.02",
     "2f_140": "0.02",
@@ -189,7 +189,7 @@ GRIPPER_GOAL_TOLERANCES = {
 
 # stall_velocity_threshold for the topic-based simulation, in the driven joint's
 # unit per second, well under the slowest finger speed: about 0.2 rad/s on the
-# 2F models, 0.010 m/s on the Hand-E (0.0535 m/s finger speed on the C10, so the same 0.002 is well under it).
+# 2F models, 0.010 m/s on the Hand-E, 0.007 m/s on the C10.
 GRIPPER_STALL_VELOCITY_THRESHOLDS = {
     "2f_85": "0.05",
     "2f_140": "0.05",

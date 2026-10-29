@@ -41,6 +41,9 @@
         baudrate:=115200
         gripper_speed_multiplier:=1.0
         gripper_force_multiplier:=0.5
+        gripper_max_speed:=''
+        gripper_max_force:=''
+        gripper_closed_position:=''
         tcp_z_offset:=0.15477">
 
         <!-- PickNik's names for the topic-based path, released in 1.1.0 and
@@ -62,7 +65,9 @@
 
         <xacro:include filename="$(find robotiq_description)/urdf/hand_e_c10.ros2_control.xacro" />
         <xacro:if value="${include_ros2_control}">
-            <!-- The driver's full speed and force are the finger joint's limits, and it closes at one finger's travel. -->
+            <!-- The other models take gripper_max_speed, gripper_max_force and gripper_closed_position with defaults of their own;
+                 here an empty default falls back to the properties below, so each value still has one home: the driver's full
+                 speed and force are the finger joint's limits, and it closes at one finger's travel. -->
             <xacro:robotiq_gripper_ros2_control
                 name="${name}" prefix="${prefix}"
                 sim_gazebo="${sim_gazebo}"
@@ -75,9 +80,9 @@
                 baudrate="${baudrate}"
                 gripper_speed_multiplier="${gripper_speed_multiplier}"
                 gripper_force_multiplier="${gripper_force_multiplier}"
-                gripper_max_speed="${finger_speed}"
-                gripper_max_force="${finger_effort}"
-                gripper_closed_position="${travel}"/>
+                gripper_max_speed="${gripper_max_speed or finger_speed}"
+                gripper_max_force="${gripper_max_force or finger_effort}"
+                gripper_closed_position="${gripper_closed_position or travel}"/>
         </xacro:if>
 
         <link name="${prefix}hand_e_c10_base_link">
