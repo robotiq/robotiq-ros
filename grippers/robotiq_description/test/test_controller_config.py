@@ -544,7 +544,12 @@ def spawned_controllers(distro, monkeypatch, **launch_arguments):
 
 # The gripper_profile each model's description hands the driver, the 2F-85's
 # when it sets none. Humble EOL: delete.
-MODEL_PROFILES = {"2f_85": "2f_85", "2f_140": "2f_85", "hand_e": "hand_e"}
+MODEL_PROFILES = {
+    "2f_85": "2f_85",
+    "2f_140": "2f_85",
+    "hand_e": "hand_e",
+    "hand_e_c10": "hand_e_c10",
+}
 
 
 # Humble EOL: delete.
@@ -576,10 +581,15 @@ def macro_closed_position(gripper_model):
 @requires_launch
 @pytest.mark.parametrize(
     "gripper_model,expected",
-    [("2f_85", 0.7929), ("2f_140", 0.695), ("hand_e", 0.025)],
+    [
+        ("2f_85", 0.7929),
+        ("2f_140", 0.695),
+        ("hand_e", 0.025),
+        ("hand_e_c10", 0.0192),
+    ],
 )
 def test_macro_closed_position_reads_the_expanded_description(gripper_model, expected):
-    # The Hand-E computes its value from the stroke: the helper reads it as the launch does.
+    # The Hand-E computes its value from the stroke and the C10 from its travel: the helper reads it as the launch does.
     assert float(macro_closed_position(gripper_model)) == pytest.approx(
         expected, rel=1e-3
     )
@@ -661,18 +671,27 @@ def test_launch_hands_the_humble_controller_the_description_s_closed_position(
 
 # Humble EOL: delete this test.
 @requires_launch
-def test_launch_hands_the_humble_controller_the_description_s_profile(monkeypatch):
+@pytest.mark.parametrize(
+    "gripper_model,joint,closed_position",
+    [
+        ("hand_e", "hande_left_finger_joint", 0.025),
+        ("hand_e_c10", "hande_c10_finger_1_joint", 0.0192),
+    ],
+)
+def test_launch_hands_the_humble_controller_the_description_s_profile(
+    monkeypatch, gripper_model, joint, closed_position
+):
     spawned = spawned_controllers(
         "humble",
         monkeypatch,
-        gripper_model="hand_e",
-        gripper_joint="hande_left_finger_joint",
+        gripper_model=gripper_model,
+        gripper_joint=joint,
     )
     params = yaml.safe_load(spawned["robotiq_gripper_controller"])[
         "robotiq_gripper_controller"
     ]["ros__parameters"]
-    assert params["gripper_profile"] == "hand_e"
-    assert params["gripper_closed_position"] == 0.025
+    assert params["gripper_profile"] == gripper_model
+    assert params["gripper_closed_position"] == closed_position
 
 
 # Humble EOL: delete this test.

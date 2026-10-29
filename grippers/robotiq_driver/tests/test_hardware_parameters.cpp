@@ -206,6 +206,10 @@ TEST(HardwareParameters, ReadsTheProfile)
    EXPECT_EQ(Robotiq::profiles::kHandE.closedPosition, hand_e.profile.closedPosition);
    const GripperParameters two_finger = parseParameters(info_with({{"gripper_profile", "2f_85"}}), logger());
    EXPECT_EQ(Robotiq::profiles::k2F85.closedPosition, two_finger.profile.closedPosition);
+   // The C10 shares the Hand-E's register band, so its opening tells the two apart.
+   const GripperParameters hand_e_c10 = parseParameters(info_with({{"gripper_profile", "hand_e_c10"}}), logger());
+   EXPECT_EQ(Robotiq::profiles::kHandEC10.maxOpening, hand_e_c10.profile.maxOpening);
+   EXPECT_NE(Robotiq::profiles::kHandE.maxOpening, hand_e_c10.profile.maxOpening);
 }
 
 TEST(HardwareParameters, ReadsAProfileSurroundedByWhitespace)

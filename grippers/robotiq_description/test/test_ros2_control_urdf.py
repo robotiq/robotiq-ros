@@ -59,6 +59,7 @@ MODELS = {
     "robotiq_2f_85_gripper.urdf.xacro": "robotiq_85_left_knuckle_joint",
     "robotiq_2f_140_gripper.urdf.xacro": "finger_joint",
     "robotiq_hand_e_gripper.urdf.xacro": "hande_left_finger_joint",
+    "robotiq_hand_e_c10_gripper.urdf.xacro": "hande_c10_finger_1_joint",
 }
 
 MOCK_PLUGIN = "mock_components/GenericSystem"
@@ -72,6 +73,8 @@ MIMIC_JOINT_COUNTS = {
     "robotiq_2f_85_gripper.urdf.xacro": 5,
     "robotiq_2f_140_gripper.urdf.xacro": 5,
     "robotiq_hand_e_gripper.urdf.xacro": 1,
+    # None under sim_topic_based: the C10 declares its followers for Gazebo only (#118).
+    "robotiq_hand_e_c10_gripper.urdf.xacro": 0,
 }
 
 # Exported by the driver at runtime; needed from the URDF under mock hardware.
@@ -135,7 +138,11 @@ def joints_of(ros2_control):
 @requires_xacro
 @pytest.mark.parametrize(
     "gripper_model,joint",
-    [("2f_140", "finger_joint"), ("hand_e", "hande_left_finger_joint")],
+    [
+        ("2f_140", "finger_joint"),
+        ("hand_e", "hande_left_finger_joint"),
+        ("hand_e_c10", "hande_c10_finger_1_joint"),
+    ],
 )
 def test_gripper_model_selects_the_description_from_the_launch_default(
     gripper_model, joint
@@ -247,6 +254,7 @@ def test_baudrate_reaches_the_driver(model):
         ("robotiq_2f_85_gripper.urdf.xacro", "2f_85"),
         ("robotiq_2f_140_gripper.urdf.xacro", "2f_85"),
         ("robotiq_hand_e_gripper.urdf.xacro", "hand_e"),
+        ("robotiq_hand_e_c10_gripper.urdf.xacro", "hand_e_c10"),
     ],
 )
 def test_every_plugin_gets_the_models_sdk_profile(model, profile):
@@ -261,21 +269,43 @@ def test_the_hand_e_driver_closes_at_one_finger_s_travel():
 
 
 @requires_xacro
-def test_the_hand_e_driver_s_full_speed_is_the_finger_joint_s_limit():
+def test_the_hand_e_c10_driver_closes_at_one_finger_s_travel():
+    ros2_control = expand("robotiq_hand_e_c10_gripper.urdf.xacro", False)
+    assert float(hardware_param(ros2_control, "gripper_closed_position")) == 0.0192
+
+
+def expand_robot(model):
+    """The whole description of `model` under the real driver, parsed."""
     result = subprocess.run(
-        [
-            "xacro",
-            str(URDF_DIR / "robotiq_hand_e_gripper.urdf.xacro"),
-            "use_fake_hardware:=false",
-        ],
+        ["xacro", str(URDF_DIR / model), "use_fake_hardware:=false"],
         capture_output=True,
         text=True,
         check=True,
     )
-    robot = ET.fromstring(result.stdout)
-    limit = robot.find("joint[@name='hande_left_finger_joint']/limit")
+    return ET.fromstring(result.stdout)
+
+
+@requires_xacro
+@pytest.mark.parametrize(
+    "model,joint",
+    [
+        ("robotiq_hand_e_gripper.urdf.xacro", "hande_left_finger_joint"),
+        ("robotiq_hand_e_c10_gripper.urdf.xacro", "hande_c10_finger_1_joint"),
+    ],
+)
+def test_the_prismatic_driver_s_full_speed_is_the_finger_joint_s_limit(model, joint):
+    robot = expand_robot(model)
+    limit = robot.find(f"joint[@name='{joint}']/limit")
     max_speed = hardware_param(robot.find("ros2_control"), "gripper_max_speed")
     assert float(max_speed) == float(limit.get("velocity"))
+
+
+@requires_xacro
+def test_the_hand_e_c10_driver_s_full_force_is_the_finger_joint_s_limit():
+    robot = expand_robot("robotiq_hand_e_c10_gripper.urdf.xacro")
+    limit = robot.find("joint[@name='hande_c10_finger_1_joint']/limit")
+    max_force = hardware_param(robot.find("ros2_control"), "gripper_max_force")
+    assert float(max_force) == float(limit.get("effort"))
 
 
 @requires_xacro
@@ -305,6 +335,73 @@ def test_the_hand_e_joint_is_0_open_and_closes_as_it_grows():
 
     assert pad_gap(0.0) == pytest.approx(0.050)
     assert pad_gap(0.025) == pytest.approx(0.0)
+
+
+GAZEBO_C10 = """<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="gazebo_c10">
+    <xacro:include filename="{include}" />
+    <link name="world" />
+    <xacro:robotiq_gripper name="Gripper" prefix="" parent="world" sim_gazebo="true"
+        use_fake_hardware="false">
+        <origin xyz="0 0 0" rpy="0 0 0" />
+    </xacro:robotiq_gripper>
+</robot>
+"""
+
+
+LIMIT_ARGUMENTS_C10 = """<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="limits_c10">
+    <xacro:include filename="{include}" />
+    <link name="world" />
+    <xacro:robotiq_gripper name="Gripper" prefix="" parent="world"
+        use_fake_hardware="false" gripper_max_speed="0.05" gripper_max_force="100.0"
+        gripper_closed_position="0.01">
+        <origin xyz="0 0 0" rpy="0 0 0" />
+    </xacro:robotiq_gripper>
+</robot>
+"""
+
+
+@requires_xacro
+def test_the_hand_e_c10_macro_takes_the_driver_limit_arguments_like_the_other_models(
+    tmp_path,
+):
+    # A user xacro that passes them to any other model must work with this one too.
+    description = tmp_path / "limits.urdf.xacro"
+    description.write_text(
+        LIMIT_ARGUMENTS_C10.format(
+            include=URDF_DIR / "robotiq_hand_e_c10_macro.urdf.xacro"
+        )
+    )
+    result = subprocess.run(
+        ["xacro", str(description)], capture_output=True, text=True, check=True
+    )
+    ros2_control = ET.fromstring(result.stdout).find("ros2_control")
+    assert hardware_param(ros2_control, "gripper_max_speed") == "0.05"
+    assert hardware_param(ros2_control, "gripper_max_force") == "100.0"
+    assert hardware_param(ros2_control, "gripper_closed_position") == "0.01"
+
+
+@requires_xacro
+def test_the_hand_e_c10_followers_are_declared_for_gazebo_only(tmp_path):
+    # Declared mimic joints under sim_topic_based make the simulator's command name more
+    # joints than it gives positions for (#118), so only Gazebo, which derives nothing
+    # itself, gets them; /joint_states carries them from <mimic> everywhere else.
+    followers = {"hande_c10_finger_2_joint", "hande_c10_finger_3_joint"}
+    model = "robotiq_hand_e_c10_gripper.urdf.xacro"
+    assert followers.isdisjoint(joints_of(expand(model, False, TOPIC_BASED_ARG)))
+    assert followers.isdisjoint(joints_of(expand(model, False)))
+    assert followers.isdisjoint(joints_of(expand(model, True)))
+
+    description = tmp_path / "gazebo.urdf.xacro"
+    description.write_text(
+        GAZEBO_C10.format(include=URDF_DIR / "robotiq_hand_e_c10_macro.urdf.xacro")
+    )
+    result = subprocess.run(
+        ["xacro", str(description)], capture_output=True, text=True, check=True
+    )
+    ros2_control = ET.fromstring(result.stdout).find("ros2_control")
+    assert followers <= joints_of(ros2_control)
 
 
 @requires_xacro

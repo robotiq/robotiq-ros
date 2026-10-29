@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <xacro:include filename="$(find robotiq_description)/urdf/common.ros2_control.xacro" />
+
+    <!-- No defaults: the Hand-E C10's live in robotiq_hand_e_c10_macro.urdf.xacro,
+         which passes every argument. Its finger_1 joint is the driven one; the other two
+         fingers follow it through <mimic>, so only finger_1 carries a command interface. -->
+    <xacro:macro name="robotiq_gripper_ros2_control" params="
+        name
+        prefix
+        sim_gazebo
+        sim_topic_based
+        sim_joint_commands_topic
+        sim_joint_states_topic
+        use_fake_hardware
+        mock_sensor_commands
+        com_port
+        baudrate
+        gripper_speed_multiplier
+        gripper_force_multiplier
+        gripper_max_speed
+        gripper_max_force
+        gripper_closed_position">
+
+        <ros2_control name="${name}" type="system">
+            <xacro:robotiq_hardware
+                sim_gazebo="${sim_gazebo}"
+                sim_topic_based="${sim_topic_based}"
+                sim_joint_commands_topic="${sim_joint_commands_topic}"
+                sim_joint_states_topic="${sim_joint_states_topic}"
+                use_fake_hardware="${use_fake_hardware}"
+                mock_sensor_commands="${mock_sensor_commands}"
+                com_port="${com_port}"
+                baudrate="${baudrate}"
+                gripper_speed_multiplier="${gripper_speed_multiplier}"
+                gripper_force_multiplier="${gripper_force_multiplier}"
+                gripper_max_speed="${gripper_max_speed}"
+                gripper_max_force="${gripper_max_force}"
+                gripper_closed_position="${gripper_closed_position}"
+                gripper_profile="hand_e_c10"
+                trigger_joint_command_threshold="0.0005"/>
+
+            <joint name="${prefix}hande_c10_finger_1_joint">
+                <command_interface name="position" />
+                <!-- Mock-only; see the same block in 2f_85.ros2_control.xacro. -->
+                <xacro:if value="${use_fake_hardware}">
+                    <command_interface name="set_gripper_max_velocity"/>
+                    <command_interface name="set_gripper_max_effort"/>
+                </xacro:if>
+                <state_interface name="position">
+                    <param name="initial_value">0.0</param>
+                </state_interface>
+                <state_interface name="velocity"/>
+                <xacro:unless value="${use_fake_hardware or sim_gazebo or sim_topic_based}">
+                    <state_interface name="motor_current"/>
+                    <state_interface name="object_status"/>
+                    <state_interface name="gripper_fault"/>
+                    <state_interface name="gripper_fault_severity"/>
+                </xacro:unless>
+            </joint>
+            <!-- The followers are declared for Gazebo only, as proposed for #118: under sim_topic_based a declared mimic joint
+                 makes the simulator's command name more joints than it gives positions for. /joint_states carries them
+                 through <mimic> in robot_state_publisher. -->
+            <xacro:if value="${sim_gazebo}">
+                <xacro:robotiq_sim_mimic_joint name="${prefix}hande_c10_finger_2_joint" sim_gazebo="${sim_gazebo}"/>
+                <xacro:robotiq_sim_mimic_joint name="${prefix}hande_c10_finger_3_joint" sim_gazebo="${sim_gazebo}"/>
+            </xacro:if>
+
+            <xacro:unless value="${sim_gazebo or sim_topic_based}">
+                <gpio name="${prefix}reactivate_gripper">
+                    <command_interface name="reactivate_gripper_cmd" />
+                    <command_interface name="reactivate_gripper_response" />
+                </gpio>
+            </xacro:unless>
+
+        </ros2_control>
+    </xacro:macro>
+
+</robot>

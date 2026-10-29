@@ -28,8 +28,8 @@
 
 """Expand the Hand-E C10 xacro and check what its URDF promises.
 
-The C10 has three fingers 120 degrees apart that slide radially toward the axis. Nothing drives it yet, so
-the description has no control support: links, joints, meshes and inertia, and no ros2_control block.
+The C10 has three fingers 120 degrees apart that slide radially toward the axis. Its ros2_control block commands
+finger 1 only: the other two fingers follow it through <mimic>.
 """
 
 import math
@@ -162,9 +162,12 @@ def test_every_mesh_exists(robot):
         assert (PKG_DIR / filename[len(prefix) :]).is_file(), filename
 
 
-def test_declares_no_ros2_control_block(robot):
-    # No driver or controller supports the C10 yet; a block here would claim otherwise.
-    assert robot.find("ros2_control") is None
+def test_declares_one_ros2_control_system_that_commands_finger_1(robot):
+    systems = robot.findall("ros2_control")
+    assert len(systems) == 1
+    joints = systems[0].findall("joint")
+    assert [j.get("name") for j in joints] == ["hande_c10_finger_1_joint"]
+    assert "position" in {c.get("name") for c in joints[0].findall("command_interface")}
 
 
 @requires_xacro
