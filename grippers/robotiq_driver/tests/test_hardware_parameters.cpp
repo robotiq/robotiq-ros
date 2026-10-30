@@ -108,9 +108,14 @@ TEST(HardwareParameters, AClosedPositionItCannotDivideByIsFatal)
 {
    // on_init turns this into CallbackReturn::ERROR. PickNik accepted it and
    // then produced an undefined register from the division.
-   EXPECT_THROW(parseParameters(info_with({{"gripper_closed_position", "0"}}), logger()), std::invalid_argument);
-   EXPECT_THROW(parseParameters(info_with({{"gripper_closed_position", "nan"}}), logger()), std::invalid_argument);
-   EXPECT_THROW(parseParameters(info_with({{"gripper_closed_position", "inf"}}), logger()), std::invalid_argument);
+   EXPECT_THROW(GripperParameters parameters = parseParameters(info_with({{"gripper_closed_position", "0"}}), logger()),
+                std::invalid_argument);
+   EXPECT_THROW(GripperParameters parameters =
+                   parseParameters(info_with({{"gripper_closed_position", "nan"}}), logger()),
+                std::invalid_argument);
+   EXPECT_THROW(GripperParameters parameters =
+                   parseParameters(info_with({{"gripper_closed_position", "inf"}}), logger()),
+                std::invalid_argument);
 }
 
 TEST(HardwareParameters, ANegativeClosedPositionIsSupported)
@@ -220,9 +225,12 @@ TEST(HardwareParameters, ReadsAProfileSurroundedByWhitespace)
 
 TEST(HardwareParameters, AnUnknownProfileIsFatal)
 {
-   EXPECT_THROW(parseParameters(info_with({{"gripper_profile", "hand-e"}}), logger()), std::invalid_argument);
-   EXPECT_THROW(parseParameters(info_with({{"gripper_profile", ""}}), logger()), std::invalid_argument);
-   EXPECT_THROW(parseParameters(info_with({{"gripper_profile", " \n "}}), logger()), std::invalid_argument);
+   EXPECT_THROW(GripperParameters parameters = parseParameters(info_with({{"gripper_profile", "hand-e"}}), logger()),
+                std::invalid_argument);
+   EXPECT_THROW(GripperParameters parameters = parseParameters(info_with({{"gripper_profile", ""}}), logger()),
+                std::invalid_argument);
+   EXPECT_THROW(GripperParameters parameters = parseParameters(info_with({{"gripper_profile", " \n "}}), logger()),
+                std::invalid_argument);
 }
 
 TEST(HardwareParameters, UseDummyDefaultsOff)
