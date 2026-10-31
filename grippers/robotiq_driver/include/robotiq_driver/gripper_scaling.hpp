@@ -171,18 +171,31 @@ registerFromJointPosition(double joint_position, double closed_position)
 }
 
 //! An SI speed or force command -> its 0x00..0xFF register (rSP / rFR), as the
-//! fraction of \p maximum it represents. Truncates, as above. Nothing unless
-//! both sides are in range: \p value from zero up, \p maximum above it. The
-//! range excludes NaN and infinity, which no comparison admits.
+//! fraction of \p maximum it represents, rounded. Nothing unless both sides
+//! are finite: \p value from zero up, \p maximum above it.
 [[nodiscard]] inline std::optional<uint8_t> registerFromFractionOf(double value, double maximum)
 {
-   constexpr double kLargest = std::numeric_limits<double>::max();
-   const bool in_range = value >= 0.0 && value <= kLargest && maximum > 0.0 && maximum <= kLargest;
-   if(!in_range)
+   return Robotiq::units::registerFromSpan(value, 0.0, maximum);
+}
+
+//! Whether registerFromFractionOf can take \p maximum as its full scale.
+[[nodiscard]] inline bool isValidFullScale(double maximum)
+{
+   return std::isfinite(maximum) && maximum > 0.0;
+}
+
+//! Normalized speed or force (0 = register 0x00, the slowest or weakest, .. 1 =
+//! 0xFF) -> the value registerFromFractionOf maps to the same register for
+//! \p maximum. Above 1 saturates. Nothing for a negative or non-finite
+//! \p normalized, or an invalid \p maximum.
+[[nodiscard]] inline std::optional<double> speedOrForceFromNormalized(double normalized, double maximum)
+{
+   const std::optional<uint8_t> registerValue = Robotiq::units::registerFromSpan(normalized, 0.0, 1.0);
+   if(!registerValue || !isValidFullScale(maximum))
    {
       return std::nullopt;
    }
-   return static_cast<uint8_t>(std::min(value / maximum, 1.0) * 0xFF);
+   return maximum * *registerValue / 255.0;
 }
 
 inline constexpr double kAmperesPerCurrentCount = 0.010;

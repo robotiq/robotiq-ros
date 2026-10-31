@@ -345,7 +345,7 @@ it, since Gazebo hosts its own `controller_manager`.
 # Jazzy / Lyrical: the goal is the gripper_cmd goal with a normalized position
 ros2 action send_goal /robotiq_gripper_controller/normalized_gripper_cmd \
   control_msgs/action/ParallelGripperCommand \
-  "{command: {position: [0.5], effort: [40.0]}}"
+  "{command: {position: [0.5], velocity: [0.5], effort: [0.25]}}"
 
 # Humble
 ros2 action send_goal /robotiq_gripper_controller/normalized_gripper_cmd \
@@ -353,11 +353,13 @@ ros2 action send_goal /robotiq_gripper_controller/normalized_gripper_cmd \
   "{command: {position: 0.5, max_effort: 50.0}}"
 ```
 
-The goal takes the same message as `gripper_cmd` below, with the same `effort` and `velocity`, and its result reports the position normalized too. `robotiq_normalized_position_broadcaster` publishes the read-back on `/joint_states` as `robotiq_normalized_joint`, a name no URDF joint carries. Both work on every hardware plugin, `use_fake_hardware:=true` and the simulators included. With a prefixed description, set the broadcaster's `normalized_joint` parameter to the prefixed name.
+From Jazzy on, the goal's `velocity` and `effort` are normalized the same way, from **0 = slowest or weakest to 1 = fastest or strongest**: the speed and force registers over 255. Speed 0 is the gripper's slowest motion, not a stop. A value above 1 is the maximum; a negative or non-finite one is rejected. Left empty, they fall back to the controller's `max_velocity` / `max_effort`, in `gripper_cmd`'s units. Humble's controller commands neither speed nor force, on either action. The gripper reports neither, so nothing reads them back.
+
+The goal takes the same message as `gripper_cmd` below, and its result reports the position normalized too. `robotiq_normalized_position_broadcaster` publishes the read-back on `/joint_states` as `robotiq_normalized_joint`, a name no URDF joint carries. Both work on every hardware plugin, `use_fake_hardware:=true` and the simulators included. With a prefixed description, set the broadcaster's `normalized_joint` parameter to the prefixed name.
 
 A position read back never lands exactly on 0 or 1: the fingers' stops sit inside the register range, about 0.01 from the open end and 0.02 from the closed end on a Hand-E. Wait for the action's result, which the gripper's object detection decides, rather than for an end value.
 
-The action and the broadcaster need the joint's `gripper_closed_position` and `gripper_profile`, which every shipped description gives every plugin; without them the controller warns and serves `gripper_cmd` alone, and the broadcaster does not configure.
+The action and the broadcaster need the joint's `gripper_closed_position` and `gripper_profile`, which every shipped description gives every plugin; without them the controller warns and serves `gripper_cmd` alone, and the broadcaster does not configure. The speed and force scale by `gripper_max_speed` / `gripper_max_force`, also given to every plugin; without them the controller takes the driver's defaults, as the driver does.
 
 #### Joint position
 
@@ -380,7 +382,7 @@ ros2 action send_goal /robotiq_gripper_controller/gripper_cmd \
   "{command: {position: 0.4, max_effort: 50.0}}"
 ```
 
-`position` is the joint angle in radians (≈ `0.0` open → ~`0.8` closed on a 2F-85), one finger's travel in metres on a Hand-E (`0.0` open → `0.025` closed); on Jazzy/Lyrical `effort` and `velocity` are optional max limits, mapped to the controller's `set_gripper_max_effort` / `set_gripper_max_velocity` interfaces. The driver rounds `position` to the nearest register count; before 1.4.0 it truncated, so the same goal can now land one count higher.
+`position` is the joint angle in radians (≈ `0.0` open → ~`0.8` closed on a 2F-85), one finger's travel in metres on a Hand-E (`0.0` open → `0.025` closed); on Jazzy/Lyrical `effort` and `velocity` are optional max limits, mapped to the controller's `set_gripper_max_effort` / `set_gripper_max_velocity` interfaces. The driver rounds `position`, `velocity` and `effort` to the nearest register count; before 1.4.0 it truncated, so the same goal can now land one count higher.
 
 `effort` sets the gripper's grip threshold, as a fraction of `gripper_max_force` written to rFR. It sets the maximum current at the motor, and does **not** directly control the maximum force the gripper applies: that is also largely influenced by the closing speed. Nothing reads a force out of the gripper, and `motor_current` is not convertible to one.
 
@@ -441,7 +443,7 @@ None of the four beyond `position` and `velocity` are `ros2_control` standard in
 | `slave_address` | `0x09` | Modbus slave address; `0x09` as the manual prints it, a bare number as the decimal it looks like |
 | `connection_frequency` | `100` | Rate of the SDK's background exchange cycle, in Hz; `0` free-runs |
 | `activation_timeout` | `15` | Seconds allowed for activation and for fault recovery |
-| `gripper_max_speed` / `gripper_max_force` | `0.150` m/s / `235` N | Full scale used to turn the speed/effort command interfaces into rSP / rFR register fractions. rFR caps the motor current rather than the applied force — see [Commanding the gripper](#commanding-the-gripper). Command-side only, and nothing scales a state interface by them. The Hand-E description sets `0.075` m/s and `185` N: the speed is one finger's, as its joint is. The Hand-E C10's sets `0.0535` m/s and `175` N, its joint's limits. Rejected unless finite and above zero |
+| `gripper_max_speed` / `gripper_max_force` | `0.150` m/s / `235` N | Full scale used to turn the speed/effort command interfaces into rSP / rFR register fractions. `normalized_gripper_cmd` reads them from the description to command the same registers. rFR caps the motor current rather than the applied force — see [Commanding the gripper](#commanding-the-gripper). Command-side only, and nothing scales a state interface by them. The Hand-E description sets `0.075` m/s and `185` N: the speed is one finger's, as its joint is. The Hand-E C10's sets `0.0535` m/s and `175` N, its joint's limits. Rejected unless finite and above zero |
 | `gripper_speed_multiplier` / `gripper_force_multiplier` | `1.0` | Initial fractions published on those interfaces |
 | `use_dummy` | `false` | Drive a fake gripper instead of hardware. Off for the usual falsey spellings — empty, `0`, `false`, `no`, `off`, in any case — on for anything else |
 
