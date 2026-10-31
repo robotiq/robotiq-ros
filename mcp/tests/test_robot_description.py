@@ -8,7 +8,7 @@ from gripper_mcp.robot_description import (
 )
 
 LIMIT_2F_85_RAD = 0.8
-LIMIT_2F_140_RAD = 0.7
+LIMIT_2F_140_RAD = 0.785
 DRIVER_CLOSED_2F_85_RAD = 0.7929
 
 REAL_HARDWARE = """
@@ -23,7 +23,7 @@ CELL_2F_140_MAX_SPEED_M_S = 0.250
 CELL_2F_140_HARDWARE = f"""
       <hardware>
         <plugin>robotiq_driver/RobotiqGripperHardwareInterface</plugin>
-        <param name="gripper_closed_position">0.695</param>
+        <param name="gripper_closed_position">0.77</param>
         <param name="gripper_max_speed">{CELL_2F_140_MAX_SPEED_M_S}</param>
         <param name="gripper_max_force">{CELL_2F_140_MAX_FORCE_N}</param>
       </hardware>"""
