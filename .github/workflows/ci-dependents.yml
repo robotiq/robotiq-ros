@@ -1,0 +1,84 @@
+# Expand the released descriptions that include robotiq_description's macros
+# (Kinova, Clearpath, Husarion) against this checkout's robotiq_description.
+# They call the robotiq_gripper macro directly, so its files and arguments are
+# a contract the package tests cannot see. Weekly too: the dependents release
+# on their own schedule.
+name: Dependent descriptions
+
+on:
+  pull_request:
+    paths:
+      - "grippers/robotiq_description/**"
+      - ".github/dependents/**"
+      - ".github/workflows/ci-dependents.yml"
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  dependents:
+    name: dependents (${{ matrix.ros_distro }})
+    runs-on: ubuntu-24.04
+    container:
+      image: ros:${{ matrix.ros_distro }}-ros-base
+    continue-on-error: ${{ !matrix.blocking }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Humble EOL: delete this entry.
+          - ros_distro: humble
+            blocking: true
+            from_apt: kortex_description clearpath_manipulators_description husarion_components_description
+            from_source: ""
+          - ros_distro: jazzy
+            blocking: true
+            from_apt: kortex_description clearpath_manipulators_description husarion_components_description
+            from_source: ""
+          # Kinova has no Lyrical or Rolling binary yet: build its release from source.
+          - ros_distro: lyrical
+            blocking: true
+            from_apt: ""
+            from_source: kortex_description
+          - ros_distro: rolling
+            blocking: false
+            from_apt: ""
+            from_source: kortex_description
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install xacro, git and the binary dependents
+        run: |
+          apt-get update
+          apt_names=""
+          for p in ${{ matrix.from_apt }}; do apt_names="$apt_names ros-${{ matrix.ros_distro }}-${p//_/-}"; done
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            git ros-${{ matrix.ros_distro }}-xacro $apt_names
+      - uses: actions/checkout@v5
+      - name: Fetch the source-built dependents at their released version
+        run: |
+          mkdir -p /deps
+          for p in ${{ matrix.from_source }}; do
+            read -r url tag < <(python3 - "$p" <<'EOF'
+          import sys, urllib.request, yaml
+          package, distro = sys.argv[1], "${{ matrix.ros_distro }}"
+          distribution = yaml.safe_load(urllib.request.urlopen(
+              f"https://raw.githubusercontent.com/ros/rosdistro/master/{distro}/distribution.yaml"))
+          for repo in distribution["repositories"].values():
+              release = repo.get("release", {})
+              if package in release.get("packages", []):
+                  print(release["url"], f"release/{distro}/{package}/{release['version']}")
+          EOF
+            )
+            git clone --quiet --depth 1 --branch "$tag" "$url" "/deps/$p"
+          done
+      - name: Build robotiq_description
+        run: |
+          source /opt/ros/${{ matrix.ros_distro }}/setup.bash
+          colcon build --base-paths grippers/robotiq_description /deps \
+            --build-base /tmp/build --install-base /tmp/install
+      - name: Expand the dependents' descriptions
+        run: |
+          source /tmp/install/setup.bash
+          python3 .github/dependents/check_dependents.py ${{ matrix.from_apt }} ${{ matrix.from_source }}
