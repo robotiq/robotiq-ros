@@ -593,6 +593,51 @@ def test_deprecated_isaac_arguments_still_select_the_plugin_and_warn(model):
     assert "deprecated" not in xacro_stderr(model, TOPIC_BASED_ARG)
 
 
+MACRO_CALL = """<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="macro_call">
+    <xacro:include filename="{include}" />
+    <link name="world" />
+    <xacro:robotiq_gripper name="Gripper" prefix="" parent="world" {arguments}>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+    </xacro:robotiq_gripper>
+</robot>
+"""
+
+
+def expand_macro(tmp_path, macro, arguments):
+    description = tmp_path / "macro_call.urdf.xacro"
+    description.write_text(
+        MACRO_CALL.format(include=URDF_DIR / macro, arguments=arguments)
+    )
+    result = subprocess.run(
+        ["xacro", str(description)], capture_output=True, text=True, check=True
+    )
+    return ET.tostring(ET.fromstring(result.stdout).find("ros2_control"))
+
+
+@requires_xacro
+@pytest.mark.parametrize(
+    "macro", ["robotiq_2f_85_macro.urdf.xacro", "robotiq_2f_140_macro.urdf.xacro"]
+)
+@pytest.mark.parametrize(
+    "deprecated,current",
+    [
+        ('sim_ignition="true"', 'sim_gazebo="true"'),
+        (
+            'use_fake_hardware="true" fake_sensor_commands="true"',
+            'use_fake_hardware="true" mock_sensor_commands="true"',
+        ),
+    ],
+)
+def test_picknik_0_0_1_arguments_expand_like_their_current_names(
+    tmp_path, macro, deprecated, current
+):
+    # Clearpath, Husarion and Kinova's Humble release call the macro with these.
+    assert expand_macro(tmp_path, macro, deprecated) == expand_macro(
+        tmp_path, macro, current
+    )
+
+
 @requires_xacro
 @pytest.mark.parametrize("model,joint", MODELS.items())
 def test_sim_controller_config_claims_only_what_the_sim_urdf_declares(model, joint):

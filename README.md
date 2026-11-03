@@ -329,7 +329,7 @@ colcon build --packages-select topic_based_ros2_control --cmake-args -DBUILD_TES
 have.)
 The `ros2_control` xacros also carry a `sim_gazebo` parameter (`gz_ros2_control/GazeboSimSystem`)
 for cells that embed the gripper macro in their own Gazebo description; this launch does not wire
-it, since Gazebo hosts its own `controller_manager`.
+it, since Gazebo hosts its own `controller_manager`. The 2F-85 and 2F-140 macros still accept PickNik's 0.0.1 names, `sim_ignition` for `sim_gazebo` and `fake_sensor_commands` for `mock_sensor_commands`, with a deprecation warning; they are removed in the next major release.
 
 ### Commanding the gripper
 
