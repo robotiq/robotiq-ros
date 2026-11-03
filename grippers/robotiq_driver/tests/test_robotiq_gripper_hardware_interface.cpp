@@ -63,7 +63,7 @@ namespace robotiq_driver::test {
 namespace {
 constexpr const char* kComponentName = "robotiq_driver_ros2_control";
 
-hardware_interface::ResourceManager makeResourceManager(const std::string& urdf, rclcpp::Node& node)
+hardware_interface::ResourceManager makeResourceManager(const std::string& urdf, [[maybe_unused]] rclcpp::Node& node)
 {
 #if HARDWARE_INTERFACE_VERSION_GTE(4, 13, 0)
    return hardware_interface::ResourceManager(urdf, node.get_node_clock_interface(), node.get_node_logging_interface());
