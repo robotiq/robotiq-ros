@@ -108,13 +108,11 @@ TEST(HardwareParameters, AClosedPositionItCannotDivideByIsFatal)
 {
    // on_init turns this into CallbackReturn::ERROR. PickNik accepted it and
    // then produced an undefined register from the division.
-   EXPECT_THROW(GripperParameters parameters = parseParameters(info_with({{"gripper_closed_position", "0"}}), logger()),
+   EXPECT_THROW(static_cast<void>(parseParameters(info_with({{"gripper_closed_position", "0"}}), logger())),
                 std::invalid_argument);
-   EXPECT_THROW(GripperParameters parameters =
-                   parseParameters(info_with({{"gripper_closed_position", "nan"}}), logger()),
+   EXPECT_THROW(static_cast<void>(parseParameters(info_with({{"gripper_closed_position", "nan"}}), logger())),
                 std::invalid_argument);
-   EXPECT_THROW(GripperParameters parameters =
-                   parseParameters(info_with({{"gripper_closed_position", "inf"}}), logger()),
+   EXPECT_THROW(static_cast<void>(parseParameters(info_with({{"gripper_closed_position", "inf"}}), logger())),
                 std::invalid_argument);
 }
 
@@ -196,7 +194,7 @@ TEST(HardwareParameters, AMissingClosedPositionIsFatal)
    // Unlike every other parameter this one has no defensible default: a
    // guessed value mis-scales every position the gripper is ever given.
    hardware_interface::HardwareInfo info;
-   EXPECT_THROW(GripperParameters parameters = parseParameters(info, logger()), std::out_of_range);
+   EXPECT_THROW(static_cast<void>(parseParameters(info, logger())), std::out_of_range);
 }
 
 TEST(HardwareParameters, TheProfileDefaultsToThe2F85)
@@ -225,11 +223,11 @@ TEST(HardwareParameters, ReadsAProfileSurroundedByWhitespace)
 
 TEST(HardwareParameters, AnUnknownProfileIsFatal)
 {
-   EXPECT_THROW(GripperParameters parameters = parseParameters(info_with({{"gripper_profile", "hand-e"}}), logger()),
+   EXPECT_THROW(static_cast<void>(parseParameters(info_with({{"gripper_profile", "hand-e"}}), logger())),
                 std::invalid_argument);
-   EXPECT_THROW(GripperParameters parameters = parseParameters(info_with({{"gripper_profile", ""}}), logger()),
+   EXPECT_THROW(static_cast<void>(parseParameters(info_with({{"gripper_profile", ""}}), logger())),
                 std::invalid_argument);
-   EXPECT_THROW(GripperParameters parameters = parseParameters(info_with({{"gripper_profile", " \n "}}), logger()),
+   EXPECT_THROW(static_cast<void>(parseParameters(info_with({{"gripper_profile", " \n "}}), logger())),
                 std::invalid_argument);
 }
 
