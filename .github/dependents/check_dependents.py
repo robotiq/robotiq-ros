@@ -73,11 +73,16 @@ def kinova_cases():
     robot = os.path.join(
         get_package_share_directory("kortex_description"), "robots/kinova.urdf.xacro"
     )
+    # Humble EOL: delete; Kinova's Humble release passes sim_ignition to the gripper.
+    if os.environ["ROS_DISTRO"] == "humble":
+        gazebo = "sim_ignition:=true"
+    else:
+        gazebo = "sim_gazebo:=true"
     for gripper in ["robotiq_2f_85", "robotiq_2f_140"]:
         for mode, plugin in [
             ([], REAL),
             (["use_fake_hardware:=true"], MOCK),
-            (["sim_gazebo:=true"], GAZEBO),
+            ([gazebo], GAZEBO),
         ]:
             arguments = ["name:=kinova_arm", "arm:=gen3", f"gripper:={gripper}", *mode]
             yield [robot, *arguments], plugin
