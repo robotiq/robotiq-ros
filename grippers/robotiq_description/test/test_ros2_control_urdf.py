@@ -612,7 +612,8 @@ def expand_macro(tmp_path, macro, arguments):
     result = subprocess.run(
         ["xacro", str(description)], capture_output=True, text=True, check=True
     )
-    return ET.tostring(ET.fromstring(result.stdout).find("ros2_control"))
+    block = ET.fromstring(result.stdout).find("ros2_control")
+    return ET.tostring(block), result.stderr
 
 
 @requires_xacro
@@ -629,13 +630,15 @@ def expand_macro(tmp_path, macro, arguments):
         ),
     ],
 )
-def test_picknik_0_0_1_arguments_expand_like_their_current_names(
+def test_picknik_0_0_1_arguments_expand_like_their_current_names_and_warn(
     tmp_path, macro, deprecated, current
 ):
     # Clearpath, Husarion and Kinova's Humble release call the macro with these.
-    assert expand_macro(tmp_path, macro, deprecated) == expand_macro(
-        tmp_path, macro, current
-    )
+    deprecated_block, deprecated_stderr = expand_macro(tmp_path, macro, deprecated)
+    current_block, current_stderr = expand_macro(tmp_path, macro, current)
+    assert deprecated_block == current_block
+    assert "deprecated" in deprecated_stderr
+    assert "deprecated" not in current_stderr
 
 
 @requires_xacro
