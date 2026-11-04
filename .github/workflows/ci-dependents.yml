@@ -35,6 +35,7 @@ jobs:
             blocking: true
             from_apt: kortex_description clearpath_manipulators_description husarion_components_description
             from_source: ""
+          # Clearpath and Husarion are not released on Lyrical or Rolling yet.
           # Kinova has no Lyrical or Rolling binary yet: build its release from source.
           - ros_distro: lyrical
             blocking: true
@@ -65,12 +66,15 @@ jobs:
           package, distro = sys.argv[1], "${{ matrix.ros_distro }}"
           distribution = yaml.safe_load(urllib.request.urlopen(
               f"https://raw.githubusercontent.com/ros/rosdistro/master/{distro}/distribution.yaml"))
-          for repo in distribution["repositories"].values():
-              release = repo.get("release", {})
-              if package in release.get("packages", []):
-                  print(release["url"], f"release/{distro}/{package}/{release['version']}")
+          releases = [
+              repo["release"] for repo in distribution["repositories"].values()
+              if package in repo.get("release", {}).get("packages", [])
+          ]
+          if len(releases) == 1:
+              url, version = releases[0]["url"], releases[0]["version"]
+              print(url, f"release/{distro}/{package}/{version}")
           EOF
-            )
+            ) || { echo "::error::$p has no single release on ${{ matrix.ros_distro }}"; exit 1; }
             git clone --quiet --depth 1 --branch "$tag" "$url" "/deps/$p"
           done
       - name: Build robotiq_description

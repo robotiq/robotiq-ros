@@ -39,6 +39,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import xml.etree.ElementTree as ET
 
 from ament_index_python.packages import (
     PackageNotFoundError,
@@ -63,22 +64,39 @@ HUSARION = """<?xml version="1.0"?>
 </robot>
 """
 
+REAL = "robotiq_driver/RobotiqGripperHardwareInterface"
+MOCK = "mock_components/GenericSystem"
+GAZEBO = "gz_ros2_control/GazeboSimSystem"
+
 
 def kinova_cases():
     robot = os.path.join(
         get_package_share_directory("kortex_description"), "robots/kinova.urdf.xacro"
     )
     for gripper in ["robotiq_2f_85", "robotiq_2f_140"]:
-        for mode in [[], ["use_fake_hardware:=true"], ["sim_gazebo:=true"]]:
-            yield [robot, "name:=kinova_arm", "arm:=gen3", f"gripper:={gripper}", *mode]
+        for mode, plugin in [
+            ([], REAL),
+            (["use_fake_hardware:=true"], MOCK),
+            (["sim_gazebo:=true"], GAZEBO),
+        ]:
+            arguments = ["name:=kinova_arm", "arm:=gen3", f"gripper:={gripper}", *mode]
+            yield [robot, *arguments], plugin
 
 
 def wrapper_cases(template, modes):
-    wrapper = tempfile.NamedTemporaryFile("w", suffix=".urdf.xacro", delete=False)
-    wrapper.write(template)
-    wrapper.close()
-    for mode in modes:
-        yield [wrapper.name, *mode]
+    with tempfile.NamedTemporaryFile("w", suffix=".urdf.xacro") as wrapper:
+        wrapper.write(template)
+        wrapper.flush()
+        for mode, plugin in modes:
+            yield [wrapper.name, *mode], plugin
+
+
+def gripper_plugin(urdf):
+    for ros2_control in ET.fromstring(urdf).iter("ros2_control"):
+        joints = [joint.get("name") for joint in ros2_control.iter("joint")]
+        if any(j.endswith(("left_knuckle_joint", "finger_joint")) for j in joints):
+            return ros2_control.findtext("hardware/plugin")
+    return None
 
 
 CASES = {
@@ -86,17 +104,21 @@ CASES = {
     "clearpath_manipulators_description": lambda: wrapper_cases(
         CLEARPATH,
         [
-            ["use_manipulation_controllers:=true"],
-            ["use_manipulation_controllers:=true", "use_fake_hardware:=true"],
-            ["use_manipulation_controllers:=true", "is_sim:=true"],
+            (["use_manipulation_controllers:=true"], REAL),
+            (["use_manipulation_controllers:=true", "use_fake_hardware:=true"], MOCK),
+            (["use_manipulation_controllers:=true", "is_sim:=true"], GAZEBO),
         ],
     ),
-    "husarion_components_description": lambda: wrapper_cases(HUSARION, [[]]),
+    "husarion_components_description": lambda: wrapper_cases(HUSARION, [([], GAZEBO)]),
 }
 
 
 def main(packages):
-    print("robotiq_description:", get_package_share_directory("robotiq_description"))
+    share = get_package_share_directory("robotiq_description")
+    print("robotiq_description:", share)
+    if share.startswith("/opt/ros/"):
+        print("FAIL robotiq_description resolves to the released package")
+        return 1
     failed = 0
     for package in packages:
         try:
@@ -105,15 +127,18 @@ def main(packages):
             print(f"FAIL {package}: not installed")
             failed += 1
             continue
-        for args in CASES[package]():
+        for args, expected in CASES[package]():
             result = subprocess.run(["xacro", *args], capture_output=True, text=True)
-            label = f"{package} {' '.join(args[1:])}"
-            if result.returncode == 0:
-                print(f"pass {label}")
-            else:
+            label = f"{package} {' '.join(args[1:]) or '(default)'}"
+            if result.returncode != 0:
                 print(f"FAIL {label}")
                 print(result.stderr.strip())
                 failed += 1
+            elif (plugin := gripper_plugin(result.stdout)) != expected:
+                print(f"FAIL {label}: gripper plugin {plugin}, expected {expected}")
+                failed += 1
+            else:
+                print(f"pass {label}")
     return 1 if failed else 0
 
 
