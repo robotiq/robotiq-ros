@@ -48,6 +48,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from ament_index_python.packages import get_package_share_directory
 
 PKG_DIR = Path(__file__).parents[1]
 URDF_DIR = PKG_DIR / "urdf"
@@ -654,3 +655,90 @@ def test_sim_controller_config_claims_only_what_the_sim_urdf_declares(model, joi
     assert "max_effort_interface" not in params
     assert "max_velocity_interface" not in params
     assert set(params["state_interfaces"]) <= state_interfaces_of(ros2_control, joint)
+
+
+# Every file PickNik's 0.0.1 release installs, which descriptions written
+# against it may still include or point at.
+PICKNIK_0_0_1_FILES = [
+    "launch/view_gripper.launch.py",
+    "rviz/view_urdf.rviz",
+    "urdf/robotiq_2f_85_gripper.urdf.xacro",
+    "urdf/robotiq_2f_85_macro.urdf.xacro",
+    "urdf/robotiq_gripper.ros2_control.xacro",
+    "urdf/ur_to_robotiq_adapter.urdf.xacro",
+    *[
+        f"meshes/{kind}/{part}.{extension}"
+        for kind, extension in [("visual", "dae"), ("collision", "stl")]
+        for part in [
+            "left_finger",
+            "left_finger_tip",
+            "left_inner_knuckle",
+            "left_knuckle",
+            "right_finger",
+            "right_finger_tip",
+            "right_inner_knuckle",
+            "right_knuckle",
+            "robotiq_base",
+            "ur_to_robotiq_adapter",
+        ]
+    ],
+]
+
+
+def test_every_file_picknik_0_0_1_installs_is_still_installed():
+    share = Path(get_package_share_directory("robotiq_description"))
+    # Not PickNik's own release, which would pass trivially.
+    assert (share / "package.xml").read_text() == (PKG_DIR / "package.xml").read_text()
+    missing = [name for name in PICKNIK_0_0_1_FILES if not (share / name).is_file()]
+    assert missing == []
+
+
+ROS2_CONTROL_CALL = """<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="ros2_control_call">
+    <xacro:include filename="{include}" />
+    <xacro:robotiq_gripper_ros2_control name="Gripper" prefix="" {arguments} />
+</robot>
+"""
+
+
+def expand_ros2_control(tmp_path, include, arguments):
+    description = tmp_path / "ros2_control_call.urdf.xacro"
+    description.write_text(
+        ROS2_CONTROL_CALL.format(include=URDF_DIR / include, arguments=arguments)
+    )
+    result = subprocess.run(
+        ["xacro", str(description)], capture_output=True, text=True, check=True
+    )
+    block = ET.fromstring(result.stdout).find("ros2_control")
+    return ET.tostring(block), result.stderr
+
+
+@requires_xacro
+@pytest.mark.parametrize(
+    "deprecated,current",
+    [
+        ("", ""),
+        ('sim_ignition="true"', 'sim_gazebo="true"'),
+        (
+            'sim_isaac="true"',
+            'sim_topic_based="true" sim_joint_commands_topic="/isaac_joint_commands"'
+            ' sim_joint_states_topic="/isaac_joint_states"',
+        ),
+        (
+            'use_fake_hardware="true" fake_sensor_commands="true"',
+            'use_fake_hardware="true" mock_sensor_commands="true"',
+        ),
+    ],
+)
+def test_the_picknik_0_0_1_ros2_control_file_and_names_expand_like_the_current_ones(
+    tmp_path, deprecated, current
+):
+    deprecated_block, deprecated_stderr = expand_ros2_control(
+        tmp_path, "robotiq_gripper.ros2_control.xacro", deprecated
+    )
+    current_block, current_stderr = expand_ros2_control(
+        tmp_path, "2f_85.ros2_control.xacro", current
+    )
+    assert deprecated_block == current_block
+    assert "deprecated" in deprecated_stderr
+    assert "deprecated" not in current_stderr

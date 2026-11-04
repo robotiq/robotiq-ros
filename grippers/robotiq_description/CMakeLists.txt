@@ -18,6 +18,10 @@ install(
   DESTINATION
     share/${PROJECT_NAME}
 )
+# PickNik's 0.0.1 mesh paths, which hand-written descriptions may still use;
+# removed in the next major release.
+install(DIRECTORY meshes/visual/2f_85/ DESTINATION share/${PROJECT_NAME}/meshes/visual)
+install(DIRECTORY meshes/collision/2f_85/ DESTINATION share/${PROJECT_NAME}/meshes/collision)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
