@@ -14,6 +14,8 @@
         isaac_joint_states:=''
         use_fake_hardware:=false
         mock_sensor_commands:=false
+        sim_ignition:=false
+        fake_sensor_commands:=false
         include_ros2_control:=true
         com_port:=/dev/ttyUSB0
         baudrate:=115200
@@ -29,6 +31,11 @@
         <xacro:if value="${sim_isaac or isaac_joint_commands != '' or isaac_joint_states != ''}">
             ${xacro.warning('sim_isaac, isaac_joint_commands and isaac_joint_states are deprecated since 1.2.0 and removed in the next major release; use sim_topic_based, sim_joint_commands_topic and sim_joint_states_topic')}
         </xacro:if>
+        <!-- PickNik's 0.0.1 names, which released descriptions that include this
+             macro still pass. -->
+        <xacro:if value="${sim_ignition or fake_sensor_commands}">
+            ${xacro.warning('sim_ignition and fake_sensor_commands are deprecated since 1.4.0 and removed in the next major release; use sim_gazebo and mock_sensor_commands')}
+        </xacro:if>
         <xacro:property name="topic_based" value="${sim_topic_based or sim_isaac}"/>
         <xacro:property name="commands_topic" value="${isaac_joint_commands or ('/isaac_joint_commands' if sim_isaac else sim_joint_commands_topic)}"/>
         <xacro:property name="states_topic" value="${isaac_joint_states or ('/isaac_joint_states' if sim_isaac else sim_joint_states_topic)}"/>
@@ -39,12 +46,12 @@
         <xacro:if value="${include_ros2_control}">
             <xacro:robotiq_gripper_ros2_control
                 name="${name}" prefix="${prefix}"
-                sim_gazebo="${sim_gazebo}"
+                sim_gazebo="${sim_gazebo or sim_ignition}"
                 sim_topic_based="${topic_based}"
                 sim_joint_commands_topic="${commands_topic}"
                 sim_joint_states_topic="${states_topic}"
                 use_fake_hardware="${use_fake_hardware}"
-                mock_sensor_commands="${mock_sensor_commands}"
+                mock_sensor_commands="${mock_sensor_commands or fake_sensor_commands}"
                 com_port="${com_port}"
                 baudrate="${baudrate}"
                 gripper_speed_multiplier="${gripper_speed_multiplier}"
