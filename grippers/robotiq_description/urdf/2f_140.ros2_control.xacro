@@ -18,11 +18,10 @@
         gripper_force_multiplier:=0.5
         gripper_max_speed:=0.250
         gripper_max_force:=125.0
-        gripper_closed_position:=0.695">
+        gripper_closed_position:=0.77">
 
         <ros2_control name="${name}" type="system">
             <!-- Plugins -->
-            <!-- No 2F-140 profile yet (robotiq/grippers#34): it keeps the 2F-85's. -->
             <xacro:robotiq_hardware
                 sim_gazebo="${sim_gazebo}"
                 sim_topic_based="${sim_topic_based}"
@@ -37,7 +36,7 @@
                 gripper_max_speed="${gripper_max_speed}"
                 gripper_max_force="${gripper_max_force}"
                 gripper_closed_position="${gripper_closed_position}"
-                gripper_profile="2f_85"/>
+                gripper_profile="2f_140"/>
 
             <!-- Joint interfaces -->
             <!-- With Gazebo or Hardware, they handle mimic joints, so we only need this command interface activated -->

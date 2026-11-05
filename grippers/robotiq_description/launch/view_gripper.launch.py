@@ -34,31 +34,59 @@ from launch.substitutions import (
     PathJoinSubstitution,
 )
 import launch_ros
+import importlib.util
 import os
+
+
+def control_launch_module(pkg_share):
+    """robotiq_control.launch.py, for its per-model tables."""
+    path = os.path.join(pkg_share, "launch", "robotiq_control.launch.py")
+    spec = importlib.util.spec_from_file_location("robotiq_control_launch", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def generate_launch_description():
     pkg_share = launch_ros.substitutions.FindPackageShare(
         package="robotiq_description"
     ).find("robotiq_description")
-    default_model_path = os.path.join(
-        pkg_share, "urdf", "robotiq_2f_85_gripper.urdf.xacro"
-    )
-    default_rviz_config_path = os.path.join(pkg_share, "rviz", "view_urdf.rviz")
+    control = control_launch_module(pkg_share)
+    gripper_model = LaunchConfiguration("gripper_model")
 
     args = []
     args.append(
         launch.actions.DeclareLaunchArgument(
+            name="gripper_model",
+            default_value="2f_85",
+            choices=sorted(control.GRIPPER_JOINTS),
+            description="Gripper whose description and RViz view to load",
+        )
+    )
+    args.append(
+        launch.actions.DeclareLaunchArgument(
             name="model",
-            default_value=default_model_path,
-            description="Absolute path to gripper URDF file",
+            default_value=[
+                os.path.join(pkg_share, "urdf", "robotiq_"),
+                gripper_model,
+                "_gripper.urdf.xacro",
+            ],
+            description="Absolute path to gripper URDF file; defaults from gripper_model",
         )
     )
     args.append(
         launch.actions.DeclareLaunchArgument(
             name="rvizconfig",
-            default_value=default_rviz_config_path,
-            description="Absolute path to rviz config file",
+            default_value=PathJoinSubstitution(
+                [
+                    pkg_share,
+                    "rviz",
+                    control.PerGripperModel(
+                        control.GRIPPER_RVIZ_CONFIGS, gripper_model
+                    ),
+                ]
+            ),
+            description="Absolute path to rviz config file; defaults from gripper_model",
         )
     )
 
