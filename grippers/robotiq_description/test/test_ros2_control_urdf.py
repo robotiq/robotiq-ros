@@ -742,3 +742,38 @@ def test_the_picknik_0_0_1_ros2_control_file_and_names_expand_like_the_current_o
     assert deprecated_block == current_block
     assert "deprecated" in deprecated_stderr
     assert "deprecated" not in current_stderr
+
+
+ADAPTER_CALL = """<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="adapter_call">
+    <xacro:include filename="{include}" />
+    <link name="tool0" />
+    <xacro:ur_to_robotiq prefix="arm_" {arguments} />
+</robot>
+"""
+
+
+def expand_adapter(tmp_path, arguments):
+    description = tmp_path / "adapter_call.urdf.xacro"
+    description.write_text(
+        ADAPTER_CALL.format(
+            include=URDF_DIR / "ur_to_robotiq_adapter.urdf.xacro", arguments=arguments
+        )
+    )
+    result = subprocess.run(
+        ["xacro", str(description)], capture_output=True, text=True, check=True
+    )
+    return ET.tostring(ET.fromstring(result.stdout)), result.stderr
+
+
+@requires_xacro
+def test_the_picknik_0_0_1_adapter_call_expands_like_the_current_one(tmp_path):
+    deprecated_robot, deprecated_stderr = expand_adapter(
+        tmp_path, 'connected_to="tool0"'
+    )
+    current_robot, current_stderr = expand_adapter(
+        tmp_path, 'parent="tool0" child="arm_gripper_mount_link"'
+    )
+    assert deprecated_robot == current_robot
+    assert "connected_to is deprecated" in deprecated_stderr
+    assert "deprecated" not in current_stderr

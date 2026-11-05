@@ -1,10 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
-  <xacro:macro name="ur_to_robotiq" params="prefix parent child rotation:=^|${0.0}">
+  <xacro:macro name="ur_to_robotiq" params="prefix parent:='' child:='' connected_to:='' rotation:=^|${0.0}">
+
+    <!-- PickNik's 0.0.1 signature. -->
+    <xacro:if value="${connected_to != ''}">
+      ${xacro.warning('ur_to_robotiq connected_to is deprecated since 1.4.0 and removed in the next major release; use parent and child')}
+    </xacro:if>
+    <xacro:property name="parent_link" value="${parent or connected_to}"/>
+    <xacro:property name="child_link" value="${child or prefix + 'gripper_mount_link'}"/>
 
     <joint name="${prefix}ur_to_robotiq_joint" type="fixed">
       <!-- The parent link must be read from the robot model it is attached to. -->
-      <parent link="${parent}"/>
+      <parent link="${parent_link}"/>
       <child link="${prefix}ur_to_robotiq_link"/>
       <origin xyz="0 0 0" rpy="0 0 ${rotation}"/>
     </joint>
@@ -31,11 +38,11 @@
 
     <joint name="${prefix}gripper_side_joint" type="fixed">
       <parent link="${prefix}ur_to_robotiq_link"/>
-      <child link="${child}"/>
+      <child link="${child_link}"/>
       <!-- <origin xyz="0 0 0.011" rpy="0 ${-pi/2} ${pi/2}"/> -->
       <origin xyz="0 0 0.011" rpy="0 0 0"/>
     </joint>
-    <link name="${child}"/>
+    <link name="${child_link}"/>
 
   </xacro:macro>
 </robot>
