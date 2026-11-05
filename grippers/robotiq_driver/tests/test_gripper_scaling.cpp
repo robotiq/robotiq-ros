@@ -197,20 +197,53 @@ TEST(GripperScaling, FractionOfSpansTheWholeByte)
 {
    EXPECT_EQ(0, registerFromFractionOf(0.0, 0.15));
    EXPECT_EQ(255, registerFromFractionOf(0.15, 0.15));
-   // 0.5 * 0xFF is 127.5, truncated to 127 — see the round-trip test above.
-   EXPECT_EQ(127, registerFromFractionOf(0.075, 0.15));
+   EXPECT_EQ(128, registerFromFractionOf(0.075, 0.15));
+   EXPECT_EQ(127, registerFromFractionOf(0.0749, 0.15));
 }
 
 TEST(GripperScaling, FractionOfSaturatesRatherThanWrapping)
 {
-   // A request beyond full scale must pin at 0xFF; truncating the product
-   // would wrap it to a near-zero speed or force.
+   // A request beyond full scale must pin at 0xFF, not wrap to a near-zero
+   // speed or force.
    EXPECT_EQ(255, registerFromFractionOf(10.0, 0.15));
 }
 
 TEST(GripperScaling, whenTheMaximumIsNearZero_theRegisterIsTheMaxAllowedValue)
 {
    EXPECT_EQ(255, registerFromFractionOf(0.15, std::numeric_limits<double>::denorm_min()));
+}
+
+TEST(GripperScaling, ANormalizedSpeedOrForceCommandsItsRegister)
+{
+   for(const double maximum : {0.150, 0.075, 235.0, 185.0, 0.1})
+   {
+      for(int count = 0; count <= 255; ++count)
+      {
+         const std::optional<double> value = speedOrForceFromNormalized(count / 255.0, maximum);
+         ASSERT_TRUE(value.has_value());
+         EXPECT_EQ(count, registerFromFractionOf(*value, maximum)) << "maximum " << maximum;
+      }
+   }
+}
+
+TEST(GripperScaling, ANormalizedSpeedOrForceRoundsToTheNearestRegister)
+{
+   EXPECT_EQ(128, registerFromFractionOf(speedOrForceFromNormalized(0.5, 0.15).value(), 0.15));
+}
+
+TEST(GripperScaling, ANormalizedSpeedOrForceAboveOneSaturates)
+{
+   EXPECT_DOUBLE_EQ(0.15, speedOrForceFromNormalized(1.5, 0.15).value());
+}
+
+TEST(GripperScaling, ANormalizedSpeedOrForceOutsideTheRangeCommandsNothing)
+{
+   EXPECT_FALSE(speedOrForceFromNormalized(-0.1, 0.15).has_value());
+   EXPECT_FALSE(speedOrForceFromNormalized(std::numeric_limits<double>::quiet_NaN(), 0.15).has_value());
+   EXPECT_FALSE(speedOrForceFromNormalized(std::numeric_limits<double>::infinity(), 0.15).has_value());
+   EXPECT_FALSE(speedOrForceFromNormalized(0.5, 0.0).has_value());
+   EXPECT_FALSE(speedOrForceFromNormalized(0.5, -0.15).has_value());
+   EXPECT_FALSE(speedOrForceFromNormalized(0.5, std::numeric_limits<double>::quiet_NaN()).has_value());
 }
 
 #pragma GCC diagnostic push

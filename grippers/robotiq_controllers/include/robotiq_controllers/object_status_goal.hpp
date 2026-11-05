@@ -61,6 +61,11 @@ std::optional<double> closedPositionFromUrdf(const std::string& urdf, const std:
 // its parameter; nothing for a name the driver would reject.
 std::optional<Robotiq::DeviceProfile> profileFromUrdf(const std::string& urdf, const std::string& joint);
 
+// The driver's full-scale speed and force for \p joint, as closedPositionFromUrdf
+// finds its parameters; the driver's defaults where it would fall back on them.
+double maxSpeedFromUrdf(const std::string& urdf, const std::string& joint);
+double maxForceFromUrdf(const std::string& urdf, const std::string& joint);
+
 // The joint's object_status among a controller's loaned state interfaces; logs
 // what to do when there is none.
 std::optional<std::reference_wrapper<hardware_interface::LoanedStateInterface>> findInterface(

@@ -41,6 +41,7 @@
 #include "robotiq_controllers/object_status_goal.hpp"
 #include "robotiq_controllers/ros2_control_compat.hpp"
 #include "robotiq_driver/gripper_scaling.hpp"
+#include "robotiq_driver/hardware_parameters.hpp"
 
 namespace robotiq_controllers::joint_scale {
 
@@ -90,6 +91,24 @@ std::optional<Robotiq::DeviceProfile> profile(ControllerT& controller, const std
          return Robotiq::profiles::k2F85;
       }
       return robotiq_driver::profileNamed(name);
+   }
+}
+
+// The driver's full-scale speed or force, which \p from_urdf reads. Humble EOL:
+// delete the Humble branch; its controller commands neither.
+template <class ControllerT>
+double fullScale([[maybe_unused]] ControllerT& controller,
+                 [[maybe_unused]] const std::string& joint,
+                 [[maybe_unused]] double (*from_urdf)(const std::string&, const std::string&),
+                 [[maybe_unused]] double fallback)
+{
+   if constexpr(compat::detail::HasRobotDescription<ControllerT>::value)
+   {
+      return from_urdf(controller.get_robot_description(), joint);
+   }
+   else
+   {
+      return fallback;
    }
 }
 } // namespace robotiq_controllers::joint_scale
