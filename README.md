@@ -7,7 +7,7 @@ ROS packages for Robotiq grippers and sensors.
 | Package | Description | ROS Version |
 |---|---|---|
 | [robotiq_tsf](robotiq_tsf/) | TSF-85 tactile sensor driver | ROS 2 Humble / Jazzy / Lyrical ([main](https://github.com/robotiq/robotiq-ros/tree/main)) / ROS 1 Noetic ([noetic](https://github.com/robotiq/robotiq-ros/tree/noetic)) |
-| [grippers](grippers/) | ROS 2 `ros2_control` driver for Robotiq adaptive grippers (2F-85, 2F-140, Hand-E, Hand-E C10), on the [Robotiq C++ SDK](https://github.com/Robotiq/grippers) | ROS 2 Humble / Jazzy / Lyrical |
+| [grippers](grippers/) | ROS 2 `ros2_control` driver for Robotiq adaptive grippers (2F-85, 2F-140, Hand-E, Hand-E C10), on the [Robotiq C++ grippers SDK](https://github.com/robotiq/robotiq-sdk/tree/main/grippers) | ROS 2 Humble / Jazzy / Lyrical |
 | [mcp](mcp/) | MCP server exposing the 2F grippers to LLM agents, on the `grippers/` driver (plain Python project, not an ament package) | Python 3.12 + a sourced ROS 2 install |
 
 ## Supported ROS 2 distros
@@ -102,7 +102,7 @@ Also check out these community-maintained ROS drivers for Robotiq products.
 
 ## TSF-85
 
-Launch the sensor node (SDK-backed: the [tactile sensors SDK](https://github.com/robotiq/tactile_sensors) parses the sensor's packets):
+Launch the sensor node (SDK-backed: the [TSF-85 SDK](https://github.com/robotiq/robotiq-sdk/tree/main/tsf) parses the sensor's packets):
 
 ```bash
 ros2 run robotiq_tsf poll_data_sdk_node
@@ -162,7 +162,7 @@ The **Hand-E C10** (three concentric fingers, 120° apart, sliding radially towa
 
 The Hand-E description covers the 50 mm and the 100 mm stroke versions. `gripper_model:=hand_e` is the 50 mm one; add `hand_e_stroke:=0.100` (a launch argument of `robotiq_control.launch.py`, a xacro argument of `robotiq_hand_e_gripper.urdf.xacro`) for the 100 mm one, whose finger joint then runs `0.0` open → `0.050` closed, and whose base, fingers and `gripper_closed_position` follow. Only `0.050` and `0.100` are accepted. Force, speed and the driver's `hand_e` profile are the 50 mm version's; the 100 mm base mass is the 50 mm base's scaled by the datasheet weights (1.1 kg / 1.0 kg), with the inertia from the CAD volumes at an assumed density of 2800 kg/m³ scaled to that mass, and its meshes (`meshes/*/hand_e_100`) from the CAD with the standard fingertips. On a bench Hand-E 100 mm (raw Modbus, empty jaws, rSP 255, three full strokes each way) the register endpoints are the same as the 50 mm's (gPO 3 ↔ 250, as the `hand_e` profile has them), and a full close took 0.68 s, about 147 mm/s of opening against the manual's 150 mm/s, which fits the 0.075 m/s finger speed. It has not been run under the ROS driver.
 
-The driver runs on the [Robotiq C++ grippers SDK](https://github.com/robotiq/grippers), which the `robotiq_grippers_sdk_vendor` package fetches and builds at a pinned release. The SDK owns the serial link and the Modbus exchange (one FC 0x17 transaction per cycle, on its own thread); `robotiq_driver` is the `ros2_control` layer above it, and its `read()` / `write()` copy the SDK's process image rather than touching the bus.
+The driver runs on the [Robotiq C++ grippers SDK](https://github.com/robotiq/robotiq-sdk/tree/main/grippers), which the `robotiq_grippers_sdk_vendor` package fetches and builds at a pinned release. The SDK owns the serial link and the Modbus exchange (one FC 0x17 transaction per cycle, on its own thread); `robotiq_driver` is the `ros2_control` layer above it, and its `read()` / `write()` copy the SDK's process image rather than touching the bus.
 
 **Robotiq maintains this driver.** It started from PickNik Robotics'
 [`ros2_robotiq_gripper`](https://github.com/PickNikRobotics/ros2_robotiq_gripper) (BSD-3-Clause),
@@ -537,7 +537,7 @@ CI builds the packages and runs their unit tests on pull requests, once per supp
 
 ## Docker
 
-The `docker/` folder provides scripts to build and run the TSF-85 and 2F grippers inside a container. The image build fetches both SDKs through their vendor packages, and `run.sh` fetches the tactile sensor's udev and device-discovery scripts from the same [tactile_sensors](https://github.com/robotiq/tactile_sensors) release, so both need network access.
+The `docker/` folder provides scripts to build and run the TSF-85 and 2F grippers inside a container. The image build fetches both SDKs through their vendor packages, and `run.sh` fetches the tactile sensor's udev and device-discovery scripts from the same [robotiq-sdk](https://github.com/robotiq/robotiq-sdk) release, so both need network access.
 
 | Script | Description |
 |---|---|

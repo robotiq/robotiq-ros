@@ -93,18 +93,18 @@ gripper model, firmware version and how it behaved.
 
 ### The SDKs
 
-`robotiq_driver` and `robotiq_tsf` are ROS layers over two C++ SDKs, [grippers](https://github.com/robotiq/grippers) and [tactile_sensors](https://github.com/robotiq/tactile_sensors). Each SDK reaches ROS through a vendor package in this repository, `robotiq_grippers_sdk_vendor` and `robotiq_tactile_sdk_vendor`, which fetches and builds it during `colcon build`. The SDK repositories carry nothing ROS-specific: they are used outside ROS too, so the ROS packaging lives here, as it would for any third-party library. Git submodules would not survive a build-farm release, whose source tarball leaves them out.
+`robotiq_driver` and `robotiq_tsf` are ROS layers over two C++ SDKs, both in [robotiq-sdk](https://github.com/robotiq/robotiq-sdk): the grippers SDK in `grippers/` and the TSF-85 SDK in `tsf/`. Each SDK reaches ROS through a vendor package in this repository, `robotiq_grippers_sdk_vendor` and `robotiq_tactile_sdk_vendor`, which fetches and builds it during `colcon build`. The SDK repositories carry nothing ROS-specific: they are used outside ROS too, so the ROS packaging lives here, as it would for any third-party library. Git submodules would not survive a build-farm release, whose source tarball leaves them out.
 
-Each vendor package pins its SDK in its `sdk_version` file. Moving a pin is a one-line change; a release pins a tagged SDK release.
+Each vendor package pins its SDK in its `sdk_version` file, a robotiq-sdk release tag. Moving a pin is a one-line change; a release pins a tagged SDK release.
 
-To build against a local SDK checkout, for example while changing the SDK and the ROS side together, point the vendor package at it, then build the rest as usual:
+To build against a local robotiq-sdk checkout, for example while changing the SDK and the ROS side together, point the vendor package at it, then build the rest as usual:
 
 ```bash
-colcon build --packages-select robotiq_grippers_sdk_vendor --cmake-args -DROBOTIQ_GRIPPERS_SDK_SOURCE_DIR=$HOME/src/grippers
-colcon build --packages-select robotiq_tactile_sdk_vendor --cmake-args -DROBOTIQ_TACTILE_SDK_SOURCE_DIR=$HOME/src/tactile_sensors
+colcon build --packages-select robotiq_grippers_sdk_vendor --cmake-args -DROBOTIQ_GRIPPERS_SDK_SOURCE_DIR=$HOME/src/robotiq-sdk
+colcon build --packages-select robotiq_tactile_sdk_vendor --cmake-args -DROBOTIQ_TACTILE_SDK_SOURCE_DIR=$HOME/src/robotiq-sdk
 ```
 
-The setting sticks in the vendor package's CMake cache, so later builds keep using the checkout. Pass the variable empty, for example `-DROBOTIQ_GRIPPERS_SDK_SOURCE_DIR=`, to go back to the pinned release. Every file under the checkout's `sdk_cpp/` counts as an input, so keep the SDK's own build tree out of it, or each build of the SDK there rebuilds the vendor package.
+The setting sticks in the vendor package's CMake cache, so later builds keep using the checkout. Pass the variable empty, for example `-DROBOTIQ_GRIPPERS_SDK_SOURCE_DIR=`, to go back to the pinned release. The vendor package builds the product's folder in it, `grippers/sdk_cpp/` or `tsf/sdk_cpp/`. Every file under that folder counts as an input, so keep the SDK's own build tree out of it, or each build of the SDK there rebuilds the vendor package.
 
 The Docker image always builds the pinned releases; the override does not reach it.
 
@@ -172,8 +172,7 @@ Two things to leave alone:
   [Versioning](README.md#versioning)). Don't bump them in a PR — a maintainer
   does that when cutting a release.
 - **The SDK pins.** Changes to the gripper or tactile SDK go to
-  [robotiq/grippers](https://github.com/robotiq/grippers) or
-  [robotiq/tactile_sensors](https://github.com/robotiq/tactile_sensors); a
+  [robotiq/robotiq-sdk](https://github.com/robotiq/robotiq-sdk); a
   maintainer moves the pin (see [The SDKs](#the-sdks)).
 
 ## Licensing and copyright
