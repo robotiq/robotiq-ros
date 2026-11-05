@@ -740,7 +740,12 @@ def test_the_picknik_0_0_1_ros2_control_file_and_names_expand_like_the_current_o
         tmp_path, "2f_85.ros2_control.xacro", current
     )
     assert deprecated_block == current_block
-    assert "deprecated" in deprecated_stderr
+    assert "robotiq_gripper.ros2_control.xacro is deprecated" in deprecated_stderr
+    if deprecated:
+        assert (
+            "sim_ignition, sim_isaac and fake_sensor_commands are deprecated"
+            in deprecated_stderr
+        )
     assert "deprecated" not in current_stderr
 
 
