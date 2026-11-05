@@ -28,7 +28,7 @@ PRODUCT="${1:-gripper}"
 has() { command -v "$1" >/dev/null 2>&1; }
 log() { echo "[${1}] ${*:2}"; }   # log <tag> <message...>  e.g. log gripper "..."
 
-# The tactile_sensors helpers are fetched for the sensor only. Without them the
+# The TSF-85 helpers are fetched for the sensor only. Without them the
 # container still starts, minus the udev rule, the device mapping and the X11
 # setup (`xhost +local:root` on the host does that by hand).
 if [[ "${PRODUCT}" == "sensor" || "${PRODUCT}" == "both" ]]; then
@@ -38,7 +38,7 @@ if [[ "${PRODUCT}" == "sensor" || "${PRODUCT}" == "both" ]]; then
   done
 fi
 
-# The tactile_sensors repository's ensure_docker_image.sh is not used here: it provisions
+# robotiq-sdk's tsf/utils/scripts/ensure_docker_image.sh is not used here: it provisions
 # the standalone sensor image (pull REMOTE_IMAGE, else build Docker/Dockerfile_UI).
 # Our unified sensor+grippers image is built from this repo's docker/Dockerfile,
 # so we provision it locally below.
