@@ -713,25 +713,30 @@ def expand_ros2_control(tmp_path, include, arguments):
     return ET.tostring(block), result.stderr
 
 
+OLD_SIM_WARNING = "sim_ignition and fake_sensor_commands are deprecated"
+ISAAC_WARNING = "sim_isaac, isaac_joint_commands and isaac_joint_states are deprecated"
+ISAAC_TOPIC_BASED = (
+    'sim_topic_based="true" sim_joint_commands_topic="/isaac_joint_commands"'
+    ' sim_joint_states_topic="/isaac_joint_states"'
+)
+
+
 @requires_xacro
 @pytest.mark.parametrize(
-    "deprecated,current",
+    "deprecated,current,warning",
     [
-        ("", ""),
-        ('sim_ignition="true"', 'sim_gazebo="true"'),
-        (
-            'sim_isaac="true"',
-            'sim_topic_based="true" sim_joint_commands_topic="/isaac_joint_commands"'
-            ' sim_joint_states_topic="/isaac_joint_states"',
-        ),
+        ("", "", None),
+        ('sim_ignition="true"', 'sim_gazebo="true"', OLD_SIM_WARNING),
+        ('sim_isaac="true"', ISAAC_TOPIC_BASED, ISAAC_WARNING),
         (
             'use_fake_hardware="true" fake_sensor_commands="true"',
             'use_fake_hardware="true" mock_sensor_commands="true"',
+            OLD_SIM_WARNING,
         ),
     ],
 )
 def test_the_picknik_0_0_1_ros2_control_file_and_names_expand_like_the_current_ones(
-    tmp_path, deprecated, current
+    tmp_path, deprecated, current, warning
 ):
     deprecated_block, deprecated_stderr = expand_ros2_control(
         tmp_path, "robotiq_gripper.ros2_control.xacro", deprecated
@@ -741,11 +746,35 @@ def test_the_picknik_0_0_1_ros2_control_file_and_names_expand_like_the_current_o
     )
     assert deprecated_block == current_block
     assert "robotiq_gripper.ros2_control.xacro is deprecated" in deprecated_stderr
-    if deprecated:
-        assert (
-            "sim_ignition, sim_isaac and fake_sensor_commands are deprecated"
-            in deprecated_stderr
-        )
+    if warning:
+        assert warning in deprecated_stderr
+    assert "deprecated" not in current_stderr
+
+
+@requires_xacro
+@pytest.mark.parametrize(
+    "include", ["2f_85.ros2_control.xacro", "2f_140.ros2_control.xacro"]
+)
+@pytest.mark.parametrize(
+    "deprecated,current",
+    [
+        ('sim_isaac="true"', ISAAC_TOPIC_BASED),
+        (
+            'sim_isaac="true" isaac_joint_commands="/c" isaac_joint_states="/s"',
+            'sim_topic_based="true" sim_joint_commands_topic="/c"'
+            ' sim_joint_states_topic="/s"',
+        ),
+    ],
+)
+def test_picknik_main_isaac_arguments_expand_like_their_current_names_and_warn(
+    tmp_path, include, deprecated, current
+):
+    deprecated_block, deprecated_stderr = expand_ros2_control(
+        tmp_path, include, deprecated
+    )
+    current_block, current_stderr = expand_ros2_control(tmp_path, include, current)
+    assert deprecated_block == current_block
+    assert ISAAC_WARNING in deprecated_stderr
     assert "deprecated" not in current_stderr
 
 
