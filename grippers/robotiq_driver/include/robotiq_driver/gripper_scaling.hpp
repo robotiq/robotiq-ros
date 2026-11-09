@@ -178,7 +178,8 @@ registerFromJointPosition(double joint_position, double closed_position)
 //! fraction of \p maximum it represents. Truncates, as above. Nothing unless
 //! both sides are in range: \p value from zero up, \p maximum above it. The
 //! range excludes NaN and infinity, which no comparison admits.
-[[nodiscard]] inline std::optional<uint8_t> registerFromFractionOf(double value, double maximum)
+[[deprecated("use Robotiq::units::registerFromSpan(value, 0.0, maximum)")]] [[nodiscard]] inline std::optional<uint8_t>
+registerFromFractionOf(double value, double maximum)
 {
    constexpr double kLargest = std::numeric_limits<double>::max();
    const bool in_range = value >= 0.0 && value <= kLargest && maximum > 0.0 && maximum <= kLargest;
