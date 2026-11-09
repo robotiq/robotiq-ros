@@ -92,4 +92,19 @@ std::optional<Robotiq::DeviceProfile> profile(ControllerT& controller, const std
       return robotiq_driver::profileNamed(name);
    }
 }
+
+// Humble EOL: delete the Humble branch; its controller commands neither speed nor force.
+template <class ControllerT>
+object_status_goal::FullScales fullScales([[maybe_unused]] ControllerT& controller,
+                                          [[maybe_unused]] const std::string& joint)
+{
+   if constexpr(compat::detail::HasRobotDescription<ControllerT>::value)
+   {
+      return object_status_goal::fullScalesFromUrdf(controller.get_robot_description(), joint);
+   }
+   else
+   {
+      return {};
+   }
+}
 } // namespace robotiq_controllers::joint_scale

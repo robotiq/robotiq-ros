@@ -26,11 +26,17 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <limits>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <control_msgs/action/parallel_gripper_command.hpp>
 
+#include <Robotiq/gripper/units.hpp>
+
 #include <robotiq_controllers/gripper_action_controller.hpp>
+#include <robotiq_driver/hardware_parameters.hpp>
 
 #include "object_status_controller_test.hpp"
 
@@ -57,5 +63,72 @@ INSTANTIATE_TYPED_TEST_SUITE_P(GripperActionController,
                                ObjectStatusControllerTest,
                                ::testing::Types<ParallelGripperCommandTraits>,
                                NamedByAction);
+
+using NormalizedSpeedAndForce = ObjectStatusControllerTest<ParallelGripperCommandTraits>;
+
+constexpr double kNonDefaultMaxSpeed = 0.075;
+constexpr double kNonDefaultMaxForce = 185.0;
+
+ParallelGripperCommandTraits::Action::Goal goal(double position, std::vector<double> speed, std::vector<double> force)
+{
+   ParallelGripperCommandTraits::Action::Goal goal = ParallelGripperCommandTraits::goal(kJoint, position);
+   goal.command.velocity = std::move(speed);
+   goal.command.effort = std::move(force);
+   return goal;
+}
+
+TEST_F(NormalizedSpeedAndForce, ForwardsTheValuesCommandingTheirRegisters)
+{
+   bringUp(Config::driver().withFullScales(kNonDefaultMaxSpeed, kNonDefaultMaxForce));
+   sendNormalizedGoal(goal(0.5, {0.5}, {0.25}));
+
+   const auto& command = controller_->activeGoal()->gh_->get_goal()->command;
+   ASSERT_EQ(1u, command.velocity.size());
+   ASSERT_EQ(1u, command.effort.size());
+   EXPECT_EQ(128, Robotiq::units::registerFromSpan(command.velocity[0], 0.0, kNonDefaultMaxSpeed));
+   EXPECT_EQ(64, Robotiq::units::registerFromSpan(command.effort[0], 0.0, kNonDefaultMaxForce));
+}
+
+TEST_F(NormalizedSpeedAndForce, ScalesByTheDriverDefaultsWithoutFullScales)
+{
+   bringUp();
+   sendNormalizedGoal(goal(0.5, {0.0}, {1.0}));
+
+   const auto& command = controller_->activeGoal()->gh_->get_goal()->command;
+   ASSERT_EQ(1u, command.velocity.size());
+   ASSERT_EQ(1u, command.effort.size());
+   EXPECT_EQ(0, Robotiq::units::registerFromSpan(command.velocity[0], 0.0, robotiq_driver::kMaxSpeedDefault));
+   EXPECT_EQ(255, Robotiq::units::registerFromSpan(command.effort[0], 0.0, robotiq_driver::kMaxForceDefault));
+}
+
+TEST_F(NormalizedSpeedAndForce, LeavesAnUnsetSpeedAndForceToGripperCmd)
+{
+   bringUp();
+   sendNormalizedGoal(goal(0.5, {}, {}));
+
+   const auto& command = controller_->activeGoal()->gh_->get_goal()->command;
+   EXPECT_TRUE(command.velocity.empty());
+   EXPECT_TRUE(command.effort.empty());
+}
+
+TEST_F(NormalizedSpeedAndForce, ClampsAValueOutsideTheUnitSpan)
+{
+   bringUp();
+   sendNormalizedGoal(goal(0.5, {-0.1}, {1.5}));
+
+   const auto& command = controller_->activeGoal()->gh_->get_goal()->command;
+   ASSERT_EQ(1u, command.velocity.size());
+   ASSERT_EQ(1u, command.effort.size());
+   EXPECT_EQ(0, Robotiq::units::registerFromSpan(command.velocity[0], 0.0, robotiq_driver::kMaxSpeedDefault));
+   EXPECT_EQ(255, Robotiq::units::registerFromSpan(command.effort[0], 0.0, robotiq_driver::kMaxForceDefault));
+}
+
+TEST_F(NormalizedSpeedAndForce, RejectsANonFiniteValue)
+{
+   bringUp();
+   EXPECT_FALSE(acceptsNormalizedGoal(goal(0.5, {kNaN}, {})));
+   EXPECT_FALSE(acceptsNormalizedGoal(goal(0.5, {}, {std::numeric_limits<double>::infinity()})));
+   EXPECT_FALSE(controller_->holdsGoal());
+}
 } // namespace
 } // namespace robotiq_controllers::test

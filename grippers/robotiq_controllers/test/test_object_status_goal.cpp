@@ -34,10 +34,12 @@
 #include <string>
 #include <vector>
 
+#include <hardware_interface/component_parser.hpp>
 #include <hardware_interface/loaned_state_interface.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 #include <robotiq_controllers/object_status_goal.hpp>
+#include <robotiq_driver/hardware_parameters.hpp>
 
 #include "controller_test_compat.hpp"
 #include "gripper_urdf.hpp"
@@ -305,6 +307,43 @@ TEST(ProfileFromUrdf, FindsNothingInANameTheDriverRejects)
    EXPECT_FALSE(profileFromUrdf(
       robotiq_controllers::test::gripperUrdf("finger_joint", R"(<param name="gripper_profile">hand-e</param>)"),
       "finger_joint"));
+}
+
+std::string fullScalesUrdf(const std::string& speed, const std::string& force)
+{
+   return robotiq_controllers::test::gripperUrdf(
+      "finger_joint",
+      R"(<param name="gripper_closed_position">0.77</param><param name="gripper_max_speed">)" + speed
+         + R"(</param><param name="gripper_max_force">)" + force + "</param>");
+}
+
+TEST(FullScalesFromUrdf, ReadsTheDriverParametersOfTheJointsHardware)
+{
+   const FullScales full_scales = fullScalesFromUrdf(fullScalesUrdf("0.075", "185"), "finger_joint");
+   EXPECT_DOUBLE_EQ(0.075, full_scales.max_speed);
+   EXPECT_DOUBLE_EQ(185.0, full_scales.max_force);
+}
+
+TEST(FullScalesFromUrdf, DefaultsLikeTheDriverWithoutTheParameters)
+{
+   const FullScales full_scales =
+      fullScalesFromUrdf(robotiq_controllers::test::gripperUrdf("finger_joint", 0.77), "finger_joint");
+   EXPECT_DOUBLE_EQ(robotiq_driver::kMaxSpeedDefault, full_scales.max_speed);
+   EXPECT_DOUBLE_EQ(robotiq_driver::kMaxForceDefault, full_scales.max_force);
+}
+
+TEST(FullScalesFromUrdf, AgreesWithTheDriverOnTheSameDescription)
+{
+   for(const char* text : {"0.075", " 0.0535 ", "7.5e-2", "0", "-0.1", "nan", "inf", "fast"})
+   {
+      const std::string urdf = fullScalesUrdf(text, text);
+      const robotiq_driver::GripperParameters driver =
+         robotiq_driver::parseParameters(hardware_interface::parse_control_resources_from_urdf(urdf).at(0),
+                                         rclcpp::get_logger("test"));
+      const FullScales full_scales = fullScalesFromUrdf(urdf, "finger_joint");
+      EXPECT_DOUBLE_EQ(driver.max_speed, full_scales.max_speed) << "'" << text << "'";
+      EXPECT_DOUBLE_EQ(driver.max_force, full_scales.max_force) << "'" << text << "'";
+   }
 }
 
 TEST(InterfaceName, joins_the_joint_and_the_field)
