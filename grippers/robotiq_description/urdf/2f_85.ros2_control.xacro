@@ -14,6 +14,8 @@
         mock_sensor_commands:=false
         sim_ignition:=false
         sim_isaac:=false
+        isaac_joint_commands:=''
+        isaac_joint_states:=''
         fake_sensor_commands:=false
         com_port:=/dev/ttyUSB0
         baudrate:=115200
@@ -23,15 +25,18 @@
         gripper_max_force:=235.0
         gripper_closed_position:=0.7929">
 
-        <!-- PickNik's 0.0.1 names, from when this macro lived in
-             robotiq_gripper.ros2_control.xacro. -->
-        <xacro:if value="${sim_ignition or sim_isaac or fake_sensor_commands}">
-            ${xacro.warning('sim_ignition, sim_isaac and fake_sensor_commands are deprecated since 1.4.0 and removed in the next major release; use sim_gazebo, sim_topic_based and mock_sensor_commands')}
+        <!-- PickNik's names: 0.0.1's, from when this macro lived in
+             robotiq_gripper.ros2_control.xacro, and main's Isaac ones. -->
+        <xacro:if value="${sim_isaac or isaac_joint_commands != '' or isaac_joint_states != ''}">
+            ${xacro.warning('sim_isaac, isaac_joint_commands and isaac_joint_states are deprecated since 1.2.0 and removed in the next major release; use sim_topic_based, sim_joint_commands_topic and sim_joint_states_topic')}
+        </xacro:if>
+        <xacro:if value="${sim_ignition or fake_sensor_commands}">
+            ${xacro.warning('sim_ignition and fake_sensor_commands are deprecated since 1.4.0 and removed in the next major release; use sim_gazebo and mock_sensor_commands')}
         </xacro:if>
         <xacro:property name="use_gazebo" value="${sim_gazebo or sim_ignition}"/>
         <xacro:property name="use_topic_based" value="${sim_topic_based or sim_isaac}"/>
-        <xacro:property name="commands_topic" value="${'/isaac_joint_commands' if sim_isaac else sim_joint_commands_topic}"/>
-        <xacro:property name="states_topic" value="${'/isaac_joint_states' if sim_isaac else sim_joint_states_topic}"/>
+        <xacro:property name="commands_topic" value="${isaac_joint_commands or ('/isaac_joint_commands' if sim_isaac else sim_joint_commands_topic)}"/>
+        <xacro:property name="states_topic" value="${isaac_joint_states or ('/isaac_joint_states' if sim_isaac else sim_joint_states_topic)}"/>
 
         <ros2_control name="${name}" type="system">
             <!-- Plugins -->
