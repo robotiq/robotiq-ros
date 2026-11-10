@@ -294,9 +294,15 @@ PER_MODEL_TABLES = (
 @pytest.mark.parametrize("gripper_model", GRIPPER_MODELS)
 def test_every_gripper_model_s_rviz_config_ships(gripper_model):
     # CMakeLists.txt generates the views from rviz/view_urdf.rviz.in at install.
-    from ament_index_python.packages import get_package_share_directory
+    from ament_index_python.packages import (
+        PackageNotFoundError,
+        get_package_share_directory,
+    )
 
-    share = Path(get_package_share_directory("robotiq_description"))
+    try:
+        share = Path(get_package_share_directory("robotiq_description"))
+    except PackageNotFoundError:
+        pytest.skip("robotiq_description is not installed: colcon build it first")
     name = load_launch_module().gripper_models.GRIPPER_RVIZ_CONFIGS[gripper_model]
     assert "@" not in (share / "rviz" / name).read_text()
 
@@ -592,6 +598,17 @@ def test_a_per_model_default_describes_every_model_s_value():
     description = value.describe()
     for model, joint in gripper_models.GRIPPER_JOINTS.items():
         assert f"{model}: {joint}" in description
+
+
+@requires_launch
+def test_a_per_model_default_does_not_describe_the_unset_model():
+    # view_gripper's tables key the unset gripper_model with "".
+    gripper_models = load_launch_module().gripper_models
+    value = gripper_models.PerGripperModel(
+        {"": "view_urdf.rviz", "2f_140": "view_urdf_2f_140.rviz"},
+        LaunchConfiguration("gripper_model"),
+    )
+    assert value.describe().endswith("(2f_140: view_urdf_2f_140.rviz)")
 
 
 def launch_entities(distro, monkeypatch, **launch_arguments):

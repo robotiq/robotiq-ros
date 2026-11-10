@@ -43,7 +43,7 @@
       <xacro:finger_link prefix="${prefix}" name="left_inner_finger" mesh="inner_finger_left" mass="0.049834"
           com="-1e-06 0.015976 0.031861" ixx="1.71297e-05" ixy="5.77571e-09" ixz="9.85228e-09" iyy="1.83739e-05" iyz="-3.36836e-06" izz="3.79156e-06"/>
       <xacro:finger_link prefix="${prefix}" name="left_inner_finger_pad" mesh="inner_finger_pad_left" mass="0.04"
-          com="0 4.59924e-05 0.00961248" ixx="1.53e-05" ixy="0" ixz="0" iyy="1.65e-05" iyz="0" izz="3.6e-06"/>
+          com="0 4.59924e-05 0.00961248" ixx="1.53e-05" ixy="0" ixz="0" iyy="3.6e-06" iyz="0" izz="1.65e-05"/>
     </xacro:if>
     <xacro:if value="${fingerprefix == 'right'}">
       <xacro:finger_link prefix="${prefix}" name="right_outer_knuckle" mesh="outer_knuckle_right" mass="0.009163"
@@ -55,7 +55,7 @@
       <xacro:finger_link prefix="${prefix}" name="right_inner_finger" mesh="inner_finger_right" mass="0.049834"
           com="-1e-06 -0.015976 0.031861" ixx="1.71297e-05" ixy="-5.77571e-09" ixz="9.85228e-09" iyy="1.83739e-05" iyz="3.36836e-06" izz="3.79156e-06"/>
       <xacro:finger_link prefix="${prefix}" name="right_inner_finger_pad" mesh="inner_finger_pad_right" mass="0.04"
-          com="0 4.59924e-05 0.00961248" ixx="1.53e-05" ixy="0" ixz="0" iyy="1.65e-05" iyz="0" izz="3.6e-06"/>
+          com="0 4.59924e-05 0.00961248" ixx="1.53e-05" ixy="0" ixz="0" iyy="3.6e-06" iyz="0" izz="1.65e-05"/>
     </xacro:if>
   </xacro:macro>
 

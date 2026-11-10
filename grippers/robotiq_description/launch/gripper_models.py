@@ -78,7 +78,9 @@ class PerGripperModel(Substitution):
         self.gripper_model = gripper_model
 
     def describe(self):
-        values = ", ".join(f"{model}: {value}" for model, value in self.table.items())
+        values = ", ".join(
+            f"{model}: {value}" for model, value in self.table.items() if model
+        )
         return f"by {self.gripper_model.describe()} ({values})"
 
     def perform(self, context):

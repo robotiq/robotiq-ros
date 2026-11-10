@@ -495,6 +495,34 @@ def test_the_2f_140_pads_mirror_each_other(robot_2f_140, position):
     assert right[:3, :3] == pytest.approx(np.diag([-1, -1, 1]) @ left[:3, :3], abs=1e-9)
 
 
+def _stl_vertices(path):
+    """The vertices of a binary STL, one row each."""
+    data = path.read_bytes()
+    count = int.from_bytes(data[80:84], "little")
+    facets = np.frombuffer(
+        data[84 : 84 + 50 * count],
+        dtype=np.dtype([("normal", "<3f4"), ("vertices", "<9f4"), ("attr", "<u2")]),
+    )
+    return facets["vertices"].reshape(-1, 3)
+
+
+@requires_xacro
+@pytest.mark.parametrize("side", ["left", "right"])
+def test_the_2f_140_pad_inertia_lies_along_its_mesh(robot_2f_140, side):
+    # A box of the pad's extents has its moments in the same order as the
+    # pad's own: the smallest about its long side, along the finger.
+    link = robot_2f_140.find(f"link[@name='{side}_inner_finger_pad']")
+    inertia = link.find("inertial/inertia")
+    moments = [float(inertia.get(axis)) for axis in ("ixx", "iyy", "izz")]
+    mesh = link.find("collision/geometry/mesh").get("filename")
+    vertices = _stl_vertices(
+        PKG_DIR / mesh.removeprefix("package://robotiq_description/")
+    )
+    x, y, z = vertices.max(axis=0) - vertices.min(axis=0)
+    box = [y**2 + z**2, x**2 + z**2, x**2 + y**2]
+    assert list(np.argsort(moments)) == list(np.argsort(box))
+
+
 # How robotiq_2f_140_macro.urdf.xacro called the finger macros in 1.3.
 FINGERS_1_3_CALL = """<?xml version="1.0"?>
 <robot xmlns:xacro="http://wiki.ros.org/xacro" name="fingers_1_3">
