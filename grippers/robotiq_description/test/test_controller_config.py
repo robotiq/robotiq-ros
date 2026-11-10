@@ -450,6 +450,27 @@ def test_launch_forwards_the_hand_e_stroke_to_xacro():
     assert "hand_e_stroke:=0.100" in rendered
 
 
+def test_launch_forwards_the_slave_address_to_xacro():
+    launch_module = load_launch_module()
+    command = launch_module.xacro_command()
+    context = LaunchContext()
+    context.launch_configurations.update(
+        model="/x/gripper.urdf.xacro",
+        gripper_model="hand_e",
+        use_fake_hardware="true",
+        com_port="/dev/null",
+        baudrate="115200",
+        sim_topic_based="false",
+        sim_joint_commands_topic="/sim/joint_commands",
+        sim_joint_states_topic="/sim/joint_states",
+    )
+    rendered = "".join(s.perform(context) for s in command.command)
+    assert "slave_address:=9" in rendered
+    context.launch_configurations["slave_address"] = "2"
+    rendered = "".join(s.perform(context) for s in command.command)
+    assert "slave_address:=2" in rendered
+
+
 @pytest.mark.parametrize("config", ALL_CONFIGS + MOCK_CONFIGS + TOPIC_BASED_CONFIGS)
 def test_controller_type_matches_distro(config):
     controllers = load(config)["controller_manager"]["ros__parameters"]
