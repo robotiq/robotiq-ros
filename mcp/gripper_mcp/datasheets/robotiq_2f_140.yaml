@@ -7,9 +7,9 @@ stroke:
   min_opening_mm: 0.0
   # How close to an end of the stroke the fingers count as met or open, for
   # the tactile tools only (see robotiq_2f_85.yaml). One position-register
-  # count is stroke/227 = 0.62 mm on this model and the driver truncates;
-  # 1.5 mm sits above two counts with room for mechanical settle, which
-  # nobody has measured on a 2F-140.
+  # count is stroke/227 = 0.62 mm on this model. Closing with nothing between
+  # the fingers, a 2F-140 settled at gPO 228 to 230, up to 1.2 mm short, which
+  # 1.5 mm covers.
   closed_tolerance_mm: 1.5
 
 speed:

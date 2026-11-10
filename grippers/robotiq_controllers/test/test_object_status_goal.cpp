@@ -249,14 +249,14 @@ TEST(Verdict, repeats_nothing_for_a_goal_without_a_position_request)
 TEST(ClosedPositionFromUrdf, reads_the_driver_parameter_of_the_joint_s_hardware)
 {
    const std::optional<double> closed_position =
-      closedPositionFromUrdf(robotiq_controllers::test::gripperUrdf("finger_joint", 0.695), "finger_joint");
+      closedPositionFromUrdf(robotiq_controllers::test::gripperUrdf("finger_joint", 0.77), "finger_joint");
    ASSERT_TRUE(closed_position.has_value());
-   EXPECT_DOUBLE_EQ(0.695, *closed_position);
+   EXPECT_DOUBLE_EQ(0.77, *closed_position);
 }
 
 TEST(ClosedPositionFromUrdf, finds_nothing_for_another_joint)
 {
-   EXPECT_FALSE(closedPositionFromUrdf(robotiq_controllers::test::gripperUrdf("finger_joint", 0.695), "other_joint"));
+   EXPECT_FALSE(closedPositionFromUrdf(robotiq_controllers::test::gripperUrdf("finger_joint", 0.77), "other_joint"));
 }
 
 TEST(ClosedPositionFromUrdf, finds_nothing_without_the_parameter)
@@ -295,7 +295,7 @@ TEST(ProfileFromUrdf, ReadsTheDriverParameterOfTheJointsHardware)
 TEST(ProfileFromUrdf, DefaultsToThe2F85LikeTheDriver)
 {
    const std::optional<Robotiq::DeviceProfile> profile =
-      profileFromUrdf(robotiq_controllers::test::gripperUrdf("finger_joint", 0.695), "finger_joint");
+      profileFromUrdf(robotiq_controllers::test::gripperUrdf("finger_joint", 0.77), "finger_joint");
    ASSERT_TRUE(profile.has_value());
    EXPECT_EQ(Robotiq::profiles::k2F85.closedPosition, profile->closedPosition);
 }
