@@ -764,6 +764,10 @@ def test_the_picknik_0_0_1_ros2_control_file_and_names_expand_like_the_current_o
             'sim_topic_based="true" sim_joint_commands_topic="/c"'
             ' sim_joint_states_topic="/s"',
         ),
+        (
+            'use_fake_hardware="true" isaac_joint_commands="/c"',
+            'use_fake_hardware="true" sim_joint_commands_topic="/c"',
+        ),
     ],
 )
 def test_picknik_main_isaac_arguments_expand_like_their_current_names_and_warn(

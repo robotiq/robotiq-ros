@@ -5,6 +5,7 @@ Changelog for package robotiq_description
 Forthcoming
 -----------
 * First release on the ROS build farm. Earlier releases: https://github.com/robotiq/robotiq-ros/releases
+* ``robotiq_gripper_ros2_control`` accepts PickNik ``main``'s ``sim_isaac``, ``isaac_joint_commands`` and ``isaac_joint_states`` arguments on the 2F-85 and the 2F-140, deprecated like in the ``robotiq_gripper`` macros.
 * Changes for users of PickNik's 0.0.1 release:
 
   * Mock hardware (``use_fake_hardware``) declares only the driven joint, ``robotiq_85_left_knuckle_joint``. ``robot_state_publisher`` derives the other finger joints from the URDF's mimic tags.
