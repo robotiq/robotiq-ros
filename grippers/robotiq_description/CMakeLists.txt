@@ -7,6 +7,10 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
+
+# robotiq_description.gripper_models: the per-model tables both launches share.
+ament_python_install_package(${PROJECT_NAME})
 
 install(
   DIRECTORY
@@ -18,7 +22,7 @@ install(
     share/${PROJECT_NAME}
 )
 # The RViz views differ only in their camera: distance, focal point x y z,
-# pitch and yaw. gripper_models.py picks one per gripper_model.
+# pitch and yaw. robotiq_description.gripper_models picks one per gripper_model.
 function(install_rviz_view name distance x y z pitch yaw)
   set(RVIZ_DISTANCE ${distance})
   set(RVIZ_FOCAL_X ${x})

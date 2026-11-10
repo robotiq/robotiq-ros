@@ -44,22 +44,11 @@ from launch.conditions import (
 from launch.utilities import normalize_to_list_of_substitutions, perform_substitutions
 import launch_ros
 from launch_ros.parameter_descriptions import ParameterFile
-import importlib.util
 import os
+from robotiq_description import gripper_models
 import re
 from xml.etree import ElementTree
 
-
-def load_gripper_models():
-    """launch/gripper_models.py, next to this file in the source and the install."""
-    path = os.path.join(os.path.dirname(__file__), "gripper_models.py")
-    spec = importlib.util.spec_from_file_location("robotiq_gripper_models", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-gripper_models = load_gripper_models()
 
 # One controller config per hardware plugin: the driver, the ros2_control mock
 # (use_fake_hardware) and the topic_based plugin (sim_topic_based) export

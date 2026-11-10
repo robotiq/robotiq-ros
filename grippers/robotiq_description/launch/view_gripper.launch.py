@@ -34,20 +34,11 @@ from launch.substitutions import (
     PathJoinSubstitution,
 )
 import launch_ros
-import importlib.util
 import os
+from robotiq_description import gripper_models
 
 
-def load_gripper_models():
-    """launch/gripper_models.py, next to this file in the source and the install."""
-    path = os.path.join(os.path.dirname(__file__), "gripper_models.py")
-    spec = importlib.util.spec_from_file_location("robotiq_gripper_models", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def xacro_command(gripper_models):
+def xacro_command():
     # Empty gripper_model leaves the description's own, so `model:=` alone renders that file.
     gripper_model_arg = {"": ""} | {
         model: f" gripper_model:={model}" for model in gripper_models.GRIPPER_JOINTS
@@ -68,7 +59,6 @@ def generate_launch_description():
     pkg_share = launch_ros.substitutions.FindPackageShare(
         package="robotiq_description"
     ).find("robotiq_description")
-    gripper_models = load_gripper_models()
     gripper_model = LaunchConfiguration("gripper_model")
 
     args = []
@@ -113,7 +103,7 @@ def generate_launch_description():
         )
     )
 
-    robot_description_content = xacro_command(gripper_models)
+    robot_description_content = xacro_command()
     robot_description_param = {
         "robot_description": launch_ros.parameter_descriptions.ParameterValue(
             robot_description_content, value_type=str
