@@ -55,6 +55,10 @@ from launch.actions import DeclareLaunchArgument, SetLaunchConfiguration
 from launch.substitutions import LaunchConfiguration
 from launch.utilities import perform_substitutions
 
+# The installed package: run pytest by hand from a sourced install, and rebuild
+# after editing gripper_models.py unless the build used --symlink-install.
+from robotiq_description import gripper_models
+
 CONFIG_DIR = Path(__file__).parents[1] / "config"
 JAZZY_CONFIG = CONFIG_DIR / "robotiq_controllers.yaml"
 # Humble EOL: delete.
@@ -154,10 +158,10 @@ def load_launch_module():
     return module
 
 
-# The launch file imports launch_ros: without it the list is empty and the tests
-# over it skip, rather than the whole module failing to collect.
+# Some tests over it load the launch file, which imports launch_ros: without it
+# the list is empty and they skip, rather than the whole module failing to collect.
 GRIPPER_MODELS = (
-    sorted(load_launch_module().gripper_models.GRIPPER_JOINTS)
+    sorted(gripper_models.GRIPPER_JOINTS)
     if importlib.util.find_spec("launch_ros")
     else []
 )
@@ -261,14 +265,13 @@ def test_launch_description_builds():
 
 @pytest.mark.parametrize("gripper_model", GRIPPER_MODELS)
 def test_launch_defaults_the_joint_from_the_gripper_model(gripper_model):
-    launch_module = load_launch_module()
-    joint = launch_module.gripper_models.PerGripperModel(
-        launch_module.gripper_models.GRIPPER_JOINTS,
+    joint = gripper_models.PerGripperModel(
+        gripper_models.GRIPPER_JOINTS,
         LaunchConfiguration("gripper_model"),
     )
     assert (
         perform(joint, gripper_model=gripper_model)
-        == launch_module.gripper_models.GRIPPER_JOINTS[gripper_model]
+        == gripper_models.GRIPPER_JOINTS[gripper_model]
     )
 
 
@@ -303,7 +306,7 @@ def test_every_gripper_model_s_rviz_config_ships(gripper_model):
         share = Path(get_package_share_directory("robotiq_description"))
     except PackageNotFoundError:
         pytest.skip("robotiq_description is not installed: colcon build it first")
-    name = load_launch_module().gripper_models.GRIPPER_RVIZ_CONFIGS[gripper_model]
+    name = gripper_models.GRIPPER_RVIZ_CONFIGS[gripper_model]
     assert "@" not in (share / "rviz" / name).read_text()
 
 
@@ -312,21 +315,14 @@ def test_every_gripper_model_s_rviz_config_ships(gripper_model):
 def test_launch_defaults_the_per_model_values_from_the_gripper_model(
     gripper_model, table
 ):
-    launch_module = load_launch_module()
-    values = getattr(launch_module.gripper_models, table)
-    value = launch_module.gripper_models.PerGripperModel(
-        values, LaunchConfiguration("gripper_model")
-    )
+    values = getattr(gripper_models, table)
+    value = gripper_models.PerGripperModel(values, LaunchConfiguration("gripper_model"))
     assert perform(value, gripper_model=gripper_model) == values[gripper_model]
 
 
 @pytest.mark.parametrize("table", PER_MODEL_TABLES)
 def test_every_gripper_model_has_every_per_model_value(table):
-    launch_module = load_launch_module()
-    assert (
-        getattr(launch_module.gripper_models, table).keys()
-        == launch_module.gripper_models.GRIPPER_JOINTS.keys()
-    )
+    assert getattr(gripper_models, table).keys() == gripper_models.GRIPPER_JOINTS.keys()
 
 
 @pytest.mark.skipif(shutil.which("xacro") is None, reason="xacro not on PATH")
@@ -347,9 +343,7 @@ def test_the_simulation_receives_every_goal_outside_the_tolerance(gripper_model)
     threshold = ElementTree.fromstring(urdf).find(
         "ros2_control/hardware/param[@name='trigger_joint_command_threshold']"
     )
-    tolerance = load_launch_module().gripper_models.GRIPPER_GOAL_TOLERANCES[
-        gripper_model
-    ]
+    tolerance = gripper_models.GRIPPER_GOAL_TOLERANCES[gripper_model]
     assert float(threshold.text) <= float(tolerance)
 
 
@@ -361,9 +355,7 @@ def test_launch_restricts_gripper_model_to_the_known_joints():
         for action in description.entities
         if isinstance(action, DeclareLaunchArgument)
     }
-    assert declared["gripper_model"].choices == sorted(
-        launch_module.gripper_models.GRIPPER_JOINTS
-    )
+    assert declared["gripper_model"].choices == sorted(gripper_models.GRIPPER_JOINTS)
 
 
 @pytest.mark.parametrize(
@@ -556,7 +548,7 @@ def load_view_gripper():
 def view_gripper_urdf(model_file, gripper_model):
     view_gripper = load_view_gripper()
     return perform(
-        view_gripper.xacro_command(view_gripper.load_gripper_models()),
+        view_gripper.xacro_command(),
         model=str(Path(__file__).parents[1] / "urdf" / model_file),
         gripper_model=gripper_model,
     )
@@ -574,7 +566,7 @@ def test_view_gripper_hands_the_gripper_model_to_a_description_that_takes_it(
     gripper_model,
 ):
     urdf = view_gripper_urdf("robotiq_gripper.urdf.xacro", gripper_model)
-    joint = load_launch_module().gripper_models.GRIPPER_JOINTS[gripper_model]
+    joint = gripper_models.GRIPPER_JOINTS[gripper_model]
     assert f'<joint name="{joint}"' in urdf
 
 
@@ -586,7 +578,7 @@ def test_view_gripper_renders_a_model_file_as_it_is_without_a_gripper_model(
 ):
     # PickNik's 0.0.1 view_gripper.launch.py took only `model`.
     urdf = view_gripper_urdf(f"robotiq_{gripper_model}_gripper.urdf.xacro", "")
-    joint = load_launch_module().gripper_models.GRIPPER_JOINTS[gripper_model]
+    joint = gripper_models.GRIPPER_JOINTS[gripper_model]
     assert f'<joint name="{joint}"' in urdf
 
 
@@ -617,7 +609,6 @@ def test_view_gripper_defaults_follow_the_gripper_model(
 @requires_launch
 def test_a_per_model_default_describes_every_model_s_value():
     # What `ros2 launch --show-args` prints for the argument's default.
-    gripper_models = load_launch_module().gripper_models
     value = gripper_models.PerGripperModel(
         gripper_models.GRIPPER_JOINTS, LaunchConfiguration("gripper_model")
     )
@@ -629,7 +620,6 @@ def test_a_per_model_default_describes_every_model_s_value():
 @requires_launch
 def test_a_per_model_default_does_not_describe_the_unset_model():
     # view_gripper's tables key the unset gripper_model with "".
-    gripper_models = load_launch_module().gripper_models
     value = gripper_models.PerGripperModel(
         {"": "view_urdf.rviz", "2f_140": "view_urdf_2f_140.rviz"},
         LaunchConfiguration("gripper_model"),
@@ -722,7 +712,7 @@ def macro_closed_position(gripper_model):
         check=True,
     )
     return launch_module.closed_position_from_description(
-        result.stdout, launch_module.gripper_models.GRIPPER_JOINTS[gripper_model]
+        result.stdout, gripper_models.GRIPPER_JOINTS[gripper_model]
     )
 
 
@@ -754,13 +744,11 @@ def resolved(config, joint=JOINT, gripper_model="2f_85"):
         .replace(PROFILE_PLACEHOLDER, MODEL_PROFILES[gripper_model])
         .replace(
             GOAL_TOLERANCE_PLACEHOLDER,
-            load_launch_module().gripper_models.GRIPPER_GOAL_TOLERANCES[gripper_model],
+            gripper_models.GRIPPER_GOAL_TOLERANCES[gripper_model],
         )
         .replace(
             STALL_VELOCITY_PLACEHOLDER,
-            load_launch_module().gripper_models.GRIPPER_STALL_VELOCITY_THRESHOLDS[
-                gripper_model
-            ],
+            gripper_models.GRIPPER_STALL_VELOCITY_THRESHOLDS[gripper_model],
         )
     )
 
