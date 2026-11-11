@@ -421,6 +421,7 @@ def test_launch_forwards_the_gripper_model_to_xacro():
         use_fake_hardware="true",
         com_port="/dev/null",
         baudrate="115200",
+        slave_address="9",
         sim_topic_based="false",
         sim_joint_commands_topic="/sim/joint_commands",
         sim_joint_states_topic="/sim/joint_states",
@@ -439,6 +440,7 @@ def test_launch_forwards_the_hand_e_stroke_to_xacro():
         use_fake_hardware="true",
         com_port="/dev/null",
         baudrate="115200",
+        slave_address="9",
         sim_topic_based="false",
         sim_joint_commands_topic="/sim/joint_commands",
         sim_joint_states_topic="/sim/joint_states",
@@ -454,21 +456,24 @@ def test_launch_forwards_the_slave_address_to_xacro():
     launch_module = load_launch_module()
     command = launch_module.xacro_command()
     context = LaunchContext()
+    # Populate context.launch_configurations from DeclareLaunchArgument so the
+    # first check exercises the declared default rather than a fallback.
+    for entity in launch_module.generate_launch_description().entities:
+        if isinstance(entity, DeclareLaunchArgument):
+            entity.visit(context)
     context.launch_configurations.update(
         model="/x/gripper.urdf.xacro",
         gripper_model="hand_e",
         use_fake_hardware="true",
-        com_port="/dev/null",
-        baudrate="115200",
-        sim_topic_based="false",
-        sim_joint_commands_topic="/sim/joint_commands",
-        sim_joint_states_topic="/sim/joint_states",
     )
     rendered = "".join(s.perform(context) for s in command.command)
     assert "slave_address:=9" in rendered
     context.launch_configurations["slave_address"] = "2"
     rendered = "".join(s.perform(context) for s in command.command)
     assert "slave_address:=2" in rendered
+    context.launch_configurations["slave_address"] = "0x0A"
+    rendered = "".join(s.perform(context) for s in command.command)
+    assert "slave_address:=0x0A" in rendered
 
 
 @pytest.mark.parametrize("config", ALL_CONFIGS + MOCK_CONFIGS + TOPIC_BASED_CONFIGS)
