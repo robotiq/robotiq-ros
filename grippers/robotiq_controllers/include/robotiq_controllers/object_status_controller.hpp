@@ -31,9 +31,11 @@
 //! parallel_gripper_controller's from Jazzy on, gripper_controllers' on Humble.
 //! Humble EOL: simplify — one base remains, so this can become a plain class.
 //! Also serves normalized_gripper_cmd (0 = open, 1 = closed), forwarded to gripper_cmd.
+//! From Jazzy on, its speed and force run from 0 = slowest, weakest to 1.
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <exception>
 #include <functional>
@@ -126,6 +128,7 @@ public:
       }
       closed_position_ = joint_scale::closedPosition(*this, this->params_.joint);
       profile_ = joint_scale::profile(*this, this->params_.joint);
+      full_scales_ = joint_scale::fullScales(*this, this->params_.joint);
       if(use_object_status_ && closed_position_ && !profile_)
       {
          RCLCPP_WARN(this->get_node()->get_logger(),
@@ -217,12 +220,60 @@ private:
       return robotiq_driver::jointPositionFromNormalized(*normalized, *closed_position_, *profile_, sdk_logger_);
    }
 
+   // gripper_cmd's goal for \p goal, in the units the driver takes; nothing
+   // when the position has no joint value.
+   std::optional<typename Action::Goal> jointGoal(const typename Action::Goal& goal) const
+   {
+      const std::optional<double> position = jointPosition(goal);
+      if(!position)
+      {
+         return std::nullopt;
+      }
+      typename Action::Goal joint_goal = goal;
+      compat::setGoalPosition(joint_goal, *position);
+      const auto convert = [this](double& value, double full_scale, const char* quantity) {
+         const double clamped = std::clamp(value, 0.0, 1.0);
+         if(clamped != value)
+         {
+            RCLCPP_WARN(this->get_node()->get_logger(),
+                        "Normalized %s %g is outside [0, 1]; clamped.",
+                        quantity,
+                        value);
+         }
+         // Rounded to a register here: a value halfway between two, scaled
+         // directly, can come back one count low from the driver's rounding.
+         value = std::lround(clamped * 255.0) / 255.0 * full_scale;
+      };
+      compat::visitSpeedAndForce(
+         joint_goal,
+         [&](double& speed) { convert(speed, full_scales_.max_speed, "speed"); },
+         [&](double& force) { convert(force, full_scales_.max_force, "force"); });
+      return joint_goal;
+   }
+
+   static bool speedAndForceAreFinite(const typename Action::Goal& goal)
+   {
+      bool finite = true;
+      compat::visitSpeedAndForce(
+         goal,
+         [&](double speed) { finite = finite && std::isfinite(speed); },
+         [&](double force) { finite = finite && std::isfinite(force); });
+      return finite;
+   }
+
    rclcpp_action::GoalResponse onNormalizedGoal(const typename Action::Goal& goal)
    {
       const std::optional<double> normalized = compat::goalPosition(goal);
       if(!normalized || !std::isfinite(*normalized))
       {
          RCLCPP_ERROR(this->get_node()->get_logger(), "Rejected a %s goal with no finite position.", kNormalizedAction);
+         return rclcpp_action::GoalResponse::REJECT;
+      }
+      if(!speedAndForceAreFinite(goal))
+      {
+         RCLCPP_ERROR(this->get_node()->get_logger(),
+                      "Rejected a %s goal with a non-finite speed or force.",
+                      kNormalizedAction);
          return rclcpp_action::GoalResponse::REJECT;
       }
       return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
@@ -256,8 +307,14 @@ private:
          goal->abort(std::make_shared<typename Action::Result>());
          return;
       }
-      typename Action::Goal joint_goal = *goal->get_goal();
-      compat::setGoalPosition(joint_goal, jointPosition(joint_goal).value());
+      const std::optional<typename Action::Goal> joint_goal = jointGoal(*goal->get_goal());
+      if(!joint_goal)
+      {
+         RCLCPP_ERROR(this->get_node()->get_logger(), "Cannot convert the %s goal; aborting it.", kNormalizedAction);
+         forget(goal->get_goal_id());
+         goal->abort(std::make_shared<typename Action::Result>());
+         return;
+      }
 
       typename rclcpp_action::Client<Action>::SendGoalOptions options;
       options.goal_response_callback = [this, goal](typename ForwardedGoalHandle::SharedPtr forwarded) {
@@ -294,7 +351,7 @@ private:
             goal->abort(result);
          }
       };
-      joint_client_->async_send_goal(joint_goal, options);
+      joint_client_->async_send_goal(*joint_goal, options);
    }
 
    void forget(const rclcpp_action::GoalUUID& goal)
@@ -368,6 +425,7 @@ private:
    double object_status_timeout_ = 0.0;
    std::optional<double> closed_position_;
    std::optional<Robotiq::DeviceProfile> profile_;
+   object_status_goal::FullScales full_scales_;
    std::optional<std::reference_wrapper<hardware_interface::LoanedStateInterface>> object_status_;
    RealtimeGoalHandlePtr tracked_goal_;
    object_status_goal::Verdict verdict_;

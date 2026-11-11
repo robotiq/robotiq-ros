@@ -44,6 +44,7 @@
 #include "hardware_interface/loaned_state_interface.hpp"
 #include "rclcpp/logger.hpp"
 #include "rclcpp/time.hpp"
+#include "robotiq_driver/hardware_parameters.hpp"
 
 namespace robotiq_controllers::object_status_goal {
 
@@ -60,6 +61,16 @@ std::optional<double> closedPositionFromUrdf(const std::string& urdf, const std:
 // The SDK profile the driver of \p joint takes, as closedPositionFromUrdf finds
 // its parameter; nothing for a name the driver would reject.
 std::optional<Robotiq::DeviceProfile> profileFromUrdf(const std::string& urdf, const std::string& joint);
+
+struct FullScales
+{
+   double max_speed = robotiq_driver::kMaxSpeedDefault;
+   double max_force = robotiq_driver::kMaxForceDefault;
+};
+
+// The driver's full-scale speed and force for \p joint, as closedPositionFromUrdf
+// finds its parameters; the driver's defaults where it would fall back on them.
+FullScales fullScalesFromUrdf(const std::string& urdf, const std::string& joint);
 
 // The joint's object_status among a controller's loaned state interfaces; logs
 // what to do when there is none.

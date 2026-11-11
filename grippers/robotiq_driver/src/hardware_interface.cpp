@@ -49,6 +49,7 @@
 
 #include <Robotiq/gripper/fake/gripper_factory.hpp>
 #include <Robotiq/gripper/to_string.hpp>
+#include <Robotiq/gripper/units.hpp>
 #include <Robotiq/gripper/wait.hpp>
 
 #include <hardware_interface/actuator_interface.hpp>
@@ -722,8 +723,8 @@ hardware_interface::return_type RobotiqGripperHardwareInterface::write(const rcl
 
    const std::optional<uint8_t> position =
       registerFromJointPosition(gripper_position_command_, parameters_.closed_position, parameters_.profile);
-   const std::optional<uint8_t> speed = registerFromFractionOf(gripper_speed_, parameters_.max_speed);
-   const std::optional<uint8_t> force = registerFromFractionOf(gripper_force_, parameters_.max_force);
+   const std::optional<uint8_t> speed = Robotiq::units::registerFromSpan(gripper_speed_, 0.0, parameters_.max_speed);
+   const std::optional<uint8_t> force = Robotiq::units::registerFromSpan(gripper_force_, 0.0, parameters_.max_force);
    if(!position || !speed || !force)
    {
       RCLCPP_ERROR_THROTTLE(kLogger,

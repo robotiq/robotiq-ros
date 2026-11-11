@@ -179,6 +179,8 @@ TEST(GripperScaling, AClosedPositionThatClosesNegativeStillMaps)
    EXPECT_EQ(kClosedCount, registerFromJointPosition(-kClosedPosition, -kClosedPosition, k2F85));
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 TEST(GripperScaling, AFractionOutsideTheRangeCommandsNothing)
 {
    // As above: no fraction, so no register, rather than a guessed speed or
@@ -213,8 +215,6 @@ TEST(GripperScaling, whenTheMaximumIsNearZero_theRegisterIsTheMaxAllowedValue)
    EXPECT_EQ(255, registerFromFractionOf(0.15, std::numeric_limits<double>::denorm_min()));
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 TEST(GripperScaling, TheDeprecatedNamesKeepThe2F85Band)
 {
    EXPECT_EQ(kOpenCount, kGripperMinPos);

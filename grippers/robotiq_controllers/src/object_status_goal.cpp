@@ -38,6 +38,7 @@
 #include "rclcpp/logging.hpp"
 #include "robotiq_controllers/gripper_status.hpp"
 #include "robotiq_driver/gripper_scaling.hpp"
+#include "robotiq_driver/hardware_parameters.hpp"
 
 namespace robotiq_controllers::object_status_goal {
 namespace {
@@ -108,6 +109,14 @@ std::optional<double> closedPosition(const std::string& text)
       return std::nullopt;
    }
 }
+
+void readFullScale(const std::string& urdf, const std::string& joint, const char* name, double& full_scale)
+{
+   if(const std::optional<std::string> text = jointHardwareParameter(urdf, joint, name))
+   {
+      full_scale = robotiq_driver::parseFullScale(*text).value_or(full_scale);
+   }
+}
 } // namespace
 
 std::string interfaceName(const std::string& joint)
@@ -125,6 +134,14 @@ std::optional<Robotiq::DeviceProfile> profileFromUrdf(const std::string& urdf, c
 {
    const std::optional<std::string> name = jointHardwareParameter(urdf, joint, robotiq_driver::kProfileParam);
    return name ? robotiq_driver::profileNamed(*name) : Robotiq::profiles::k2F85;
+}
+
+FullScales fullScalesFromUrdf(const std::string& urdf, const std::string& joint)
+{
+   FullScales full_scales;
+   readFullScale(urdf, joint, robotiq_driver::kMaxSpeedParam, full_scales.max_speed);
+   readFullScale(urdf, joint, robotiq_driver::kMaxForceParam, full_scales.max_force);
+   return full_scales;
 }
 
 std::optional<std::reference_wrapper<hardware_interface::LoanedStateInterface>> findInterface(

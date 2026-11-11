@@ -37,6 +37,8 @@
 
 #include <chrono>
 #include <cstdint>
+#include <optional>
+#include <string>
 
 #include <Robotiq/gripper/connection_config.hpp>
 #include <Robotiq/gripper/device_profile.hpp>
@@ -56,6 +58,9 @@ inline constexpr uint32_t kBaudrateDefault = 115200;
 inline constexpr auto kTimeoutDefault = std::chrono::milliseconds{500};
 inline constexpr uint8_t kSlaveAddressDefault = 0x09;
 inline constexpr double kConnectionFrequencyDefault = 100.0;
+
+inline constexpr const char* kMaxSpeedParam = "gripper_max_speed";
+inline constexpr const char* kMaxForceParam = "gripper_max_force";
 
 //! Full scale of the shipped 2F-85, and so the default for
 //! gripper_max_speed / gripper_max_force.
@@ -102,4 +107,8 @@ struct GripperParameters
 //!        the parameters a fallback would silently mis-scale.
 [[nodiscard]] GripperParameters parseParameters(const hardware_interface::HardwareInfo& info,
                                                 const rclcpp::Logger& logger);
+
+//! \p text as gripper_max_speed / gripper_max_force, or nothing for a value
+//! parseParameters would replace with the default.
+[[nodiscard]] std::optional<double> parseFullScale(const std::string& text);
 } // namespace robotiq_driver
