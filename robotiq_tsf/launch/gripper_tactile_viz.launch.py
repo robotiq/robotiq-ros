@@ -74,6 +74,7 @@ def generate_launch_description():
 
     com_port = LaunchConfiguration("com_port")
     baudrate = LaunchConfiguration("baudrate")
+    slave_address = LaunchConfiguration("slave_address")
     use_fake_hardware = LaunchConfiguration("use_fake_hardware")
     rviz_config = LaunchConfiguration("rviz_config")
 
@@ -85,6 +86,12 @@ def generate_launch_description():
             "baudrate",
             default_value="115200",
             description="Modbus RTU baudrate the gripper is configured for.",
+        ),
+        DeclareLaunchArgument(
+            "slave_address",
+            default_value="9",
+            description="Modbus RTU slave address the gripper is configured for "
+            "(decimal or hex, e.g. 9 or 0x09).",
         ),
         DeclareLaunchArgument(
             "poller",
@@ -148,6 +155,7 @@ def generate_launch_description():
         launch_arguments={
             "com_port": com_port,
             "baudrate": baudrate,
+            "slave_address": slave_address,
             "use_fake_hardware": use_fake_hardware,
             "launch_rviz": "false",
             "shutdown_on_failure": "false",

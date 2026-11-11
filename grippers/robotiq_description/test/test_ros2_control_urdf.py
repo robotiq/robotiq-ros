@@ -251,6 +251,19 @@ def test_baudrate_reaches_the_driver(model):
 
 
 @requires_xacro
+@pytest.mark.parametrize("model", MODELS)
+def test_slave_address_reaches_the_driver(model):
+    ros2_control = expand(model, False, "slave_address:=2")
+    assert hardware_param(ros2_control, "slave_address") == "2"
+
+    ros2_control_hex = expand(model, False, "slave_address:=0x0A")
+    assert hardware_param(ros2_control_hex, "slave_address") == "0x0A"
+
+    assert hardware_param(expand(model, False), "slave_address") == "9"
+    assert hardware_param(expand(model, True), "slave_address") is None
+
+
+@requires_xacro
 @pytest.mark.parametrize(
     "model,profile",
     [

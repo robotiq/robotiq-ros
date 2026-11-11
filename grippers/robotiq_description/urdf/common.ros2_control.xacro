@@ -12,6 +12,7 @@
         mock_sensor_commands
         com_port
         baudrate
+        slave_address:=9
         gripper_speed_multiplier
         gripper_force_multiplier
         gripper_max_speed
@@ -48,6 +49,7 @@
                 <plugin>robotiq_driver/RobotiqGripperHardwareInterface</plugin>
                 <param name="COM_port">${com_port}</param>
                 <param name="baudrate">${baudrate}</param>
+                <param name="slave_address">${slave_address}</param>
                 <param name="gripper_speed_multiplier">${gripper_speed_multiplier}</param>
                 <param name="gripper_force_multiplier">${gripper_force_multiplier}</param>
                 <param name="gripper_max_speed">${gripper_max_speed}</param>

@@ -16,6 +16,7 @@
         mock_sensor_commands
         com_port
         baudrate
+        slave_address:=9
         gripper_speed_multiplier
         gripper_force_multiplier
         gripper_max_speed
@@ -32,6 +33,7 @@
                 mock_sensor_commands="${mock_sensor_commands}"
                 com_port="${com_port}"
                 baudrate="${baudrate}"
+                slave_address="${slave_address}"
                 gripper_speed_multiplier="${gripper_speed_multiplier}"
                 gripper_force_multiplier="${gripper_force_multiplier}"
                 gripper_max_speed="${gripper_max_speed}"

@@ -254,6 +254,9 @@ def xacro_command():
             "baudrate:=",
             LaunchConfiguration("baudrate"),
             " ",
+            "slave_address:=",
+            LaunchConfiguration("slave_address"),
+            " ",
             "sim_topic_based:=",
             LaunchConfiguration("sim_topic_based"),
             " ",
@@ -362,6 +365,14 @@ def generate_launch_description():
             name="baudrate",
             default_value="115200",
             description="Modbus RTU baudrate the gripper is configured for",
+        )
+    )
+    args.append(
+        launch.actions.DeclareLaunchArgument(
+            name="slave_address",
+            default_value="9",
+            description="Modbus RTU slave address the gripper is configured for "
+            "(decimal or hex, e.g. 9 or 0x09)",
         )
     )
     args.append(

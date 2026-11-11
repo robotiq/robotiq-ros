@@ -256,7 +256,7 @@ ros2 action send_goal /robotiq_gripper_controller/gripper_cmd \
 
 #### What you gain
 
-- `use_fake_hardware` and `baudrate` launch args on `robotiq_control.launch.py` (hardware-free bringup, previously hardcoded off; a custom baudrate, previously an edit to the xacro)
+- `use_fake_hardware`, `baudrate` and `slave_address` launch args on `robotiq_control.launch.py` (hardware-free bringup, previously hardcoded off; a custom baudrate or slave address, previously an edit to the xacro)
 - Actionable error messages when the gripper does not respond (24 V power, RS-485 wiring, `slave_address` / `baudrate` hints)
 - A unified Docker image with device mapping ([Docker](#docker))
 - Active maintenance — PickNik's in-tree README and CI were removed; docs live in this README, and issues go to [robotiq/robotiq-ros/issues](https://github.com/robotiq/robotiq-ros/issues)
@@ -278,6 +278,7 @@ ros2 launch robotiq_description robotiq_control.launch.py                    # r
 ros2 launch robotiq_description robotiq_control.launch.py use_fake_hardware:=true   # ros2_control mock
 ros2 launch robotiq_description robotiq_control.launch.py launch_rviz:=true         # + RViz visualization
 ros2 launch robotiq_description robotiq_control.launch.py baudrate:=<rate>
+ros2 launch robotiq_description robotiq_control.launch.py slave_address:=<addr>
 ros2 launch robotiq_description robotiq_control.launch.py sim_topic_based:=true \
   sim_joint_commands_topic:=/sim/joint_commands sim_joint_states_topic:=/sim/joint_states  # topic_based_ros2_control
 ```
@@ -440,7 +441,7 @@ None of the four beyond `position` and `velocity` are `ros2_control` standard in
 | `COM_port` | `/dev/ttyUSB0` | Serial port |
 | `baudrate` | `115200` | Must match the gripper's persisted setting, which is why it is also a launch argument, `baudrate:=<rate>`. Rejected outside 1..1000000. Most units stay at 115200; the gripper's own rate is changed in the Robotiq User Interface (*Modbus RTU Parameters*), not from here, and the gripper must be rebooted afterwards |
 | `timeout` | `0.5` | Per-transaction serial timeout, in seconds |
-| `slave_address` | `0x09` | Modbus slave address; `0x09` as the manual prints it, a bare number as the decimal it looks like |
+| `slave_address` | `0x09` | Modbus slave address; `0x09` as the manual prints it, a bare number as the decimal it looks like. Must match the address set in the Robotiq User Interface (*Modbus RTU Parameters*) |
 | `connection_frequency` | `100` | Rate of the SDK's background exchange cycle, in Hz; `0` free-runs |
 | `activation_timeout` | `15` | Seconds allowed for activation and for fault recovery |
 | `gripper_max_speed` / `gripper_max_force` | `0.150` m/s / `235` N | Full scale used to turn the speed/effort command interfaces into rSP / rFR register fractions. rFR caps the motor current rather than the applied force — see [Commanding the gripper](#commanding-the-gripper). Command-side only, and nothing scales a state interface by them. The Hand-E description sets `0.075` m/s and `185` N: the speed is one finger's, as its joint is. The Hand-E C10's sets `0.0535` m/s and `175` N, its joint's limits. Rejected unless finite and above zero |
