@@ -240,7 +240,9 @@ private:
                         quantity,
                         value);
          }
-         value = clamped * full_scale;
+         // Rounded to a register here: a value halfway between two, scaled
+         // directly, can come back one count low from the driver's rounding.
+         value = std::lround(clamped * 255.0) / 255.0 * full_scale;
       };
       compat::visitSpeedAndForce(
          joint_goal,

@@ -231,8 +231,8 @@ void setGoalPosition(GoalT& goal, double position)
 }
 
 // Calls the visitors on the speed and force the goal carries: from Jazzy on,
-// the first of each field. Humble's controller cannot command either, so
-// there none.
+// the first of each field, the only one parallel_gripper_controller reads.
+// Humble's controller cannot command either, so there none.
 template <typename GoalT, typename VisitSpeedT, typename VisitForceT>
 void visitSpeedAndForce(GoalT& goal,
                         [[maybe_unused]] VisitSpeedT&& visit_speed,

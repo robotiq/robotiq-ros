@@ -215,6 +215,7 @@ GripperParameters parseParameters(const hardware_interface::HardwareInfo& info, 
 
    return parameters;
 }
+
 std::optional<double> parseFullScale(const std::string& text)
 {
    try

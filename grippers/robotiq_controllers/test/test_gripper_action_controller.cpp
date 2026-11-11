@@ -89,6 +89,16 @@ TEST_F(NormalizedSpeedAndForce, ForwardsTheValuesCommandingTheirRegisters)
    EXPECT_EQ(64, Robotiq::units::registerFromSpan(command.effort[0], 0.0, kNonDefaultMaxForce));
 }
 
+TEST_F(NormalizedSpeedAndForce, RoundsAValueHalfwayBetweenRegistersUp)
+{
+   bringUp(Config::driver().withFullScales(0.1, kNonDefaultMaxForce));
+   sendNormalizedGoal(goal(0.5, {178.5 / 255.0}, {}));
+
+   const auto& command = controller_->activeGoal()->gh_->get_goal()->command;
+   ASSERT_EQ(1u, command.velocity.size());
+   EXPECT_EQ(179, Robotiq::units::registerFromSpan(command.velocity[0], 0.0, 0.1));
+}
+
 TEST_F(NormalizedSpeedAndForce, ScalesByTheDriverDefaultsWithoutFullScales)
 {
    bringUp();
