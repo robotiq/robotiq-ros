@@ -54,6 +54,9 @@ from launch import LaunchContext
 from launch.actions import DeclareLaunchArgument, SetLaunchConfiguration
 from launch.substitutions import LaunchConfiguration
 from launch.utilities import perform_substitutions
+
+# The installed package: run pytest by hand from a sourced install, and rebuild
+# after editing gripper_models.py unless the build used --symlink-install.
 from robotiq_description import gripper_models
 
 CONFIG_DIR = Path(__file__).parents[1] / "config"
@@ -155,8 +158,8 @@ def load_launch_module():
     return module
 
 
-# The launch file imports launch_ros: without it the list is empty and the tests
-# over it skip, rather than the whole module failing to collect.
+# Some tests over it load the launch file, which imports launch_ros: without it
+# the list is empty and they skip, rather than the whole module failing to collect.
 GRIPPER_MODELS = (
     sorted(gripper_models.GRIPPER_JOINTS)
     if importlib.util.find_spec("launch_ros")
