@@ -558,7 +558,7 @@ hardware_interface::CallbackReturn RobotiqGripperHardwareInterface::on_activate(
    // any hold target derived from it, describe where the fingers actually are.
    gripper_position_ = jointPositionFromRegister(status.position, parameters_.closed_position, parameters_.profile);
    gripper_velocity_ = 0.0;
-   gripper_motor_current_ = motorCurrentFromRegister(status.current);
+   gripper_motor_current_ = Robotiq::units::motorCurrentFromRegister(status.current);
    gripper_object_status_ = static_cast<double>(status.gripperStatus.objectDetection());
    gripper_fault_ = {gripperFaultFromRegister(status.faultStatus),
                      gripperFaultSeverityFromRegister(status.faultStatus)};
@@ -624,7 +624,7 @@ hardware_interface::return_type RobotiqGripperHardwareInterface::read(const rclc
    // The status block carries no velocity — the gripper reports position and
    // motor current only.
    gripper_velocity_ = 0.0;
-   gripper_motor_current_ = motorCurrentFromRegister(status.current);
+   gripper_motor_current_ = Robotiq::units::motorCurrentFromRegister(status.current);
    gripper_object_status_ = objectStatusValue(status.gripperStatus.objectDetection(), connection);
    gripper_fault_ = {gripperFaultFromRegister(status.faultStatus),
                      gripperFaultSeverityFromRegister(status.faultStatus)};

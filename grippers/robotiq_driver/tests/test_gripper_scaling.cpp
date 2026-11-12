@@ -35,7 +35,6 @@
 #include <optional>
 #include <string_view>
 #include <tuple>
-#include <type_traits>
 #include <vector>
 
 #include <Robotiq/gripper/to_string.hpp>
@@ -224,23 +223,14 @@ TEST(GripperScaling, TheDeprecatedNamesKeepThe2F85Band)
                     jointPositionFromRegister(128, kClosedPosition));
    EXPECT_EQ(registerFromJointPosition(0.4, kClosedPosition, k2F85), registerFromJointPosition(0.4, kClosedPosition));
 }
+
+TEST(GripperScaling, TheDeprecatedMotorCurrentIsTheSdks)
+{
+   EXPECT_DOUBLE_EQ(Robotiq::units::motorCurrentFromRegister(100), motorCurrentFromRegister(100));
+   EXPECT_DOUBLE_EQ(Robotiq::units::kAmperesPerRegisterStep, kAmperesPerCurrentCount);
+}
+
 #pragma GCC diagnostic pop
-
-TEST(GripperScaling, MotorCurrentIsTenMilliampsPerCount)
-{
-   EXPECT_DOUBLE_EQ(0.0, motorCurrentFromRegister(0));
-   EXPECT_DOUBLE_EQ(0.01, motorCurrentFromRegister(1));
-   EXPECT_DOUBLE_EQ(1.27, motorCurrentFromRegister(127));
-   EXPECT_DOUBLE_EQ(2.55, motorCurrentFromRegister(255));
-}
-
-TEST(GripperScaling, MotorCurrentTakesNoScaleFromTheDescription)
-{
-   // Scaling gCU by a description parameter would make one motor current read
-   // as two numbers on two robots.
-   static_assert(std::is_invocable_r_v<double, decltype(motorCurrentFromRegister), uint8_t>);
-   EXPECT_DOUBLE_EQ(1.0, motorCurrentFromRegister(100));
-}
 
 TEST(GripperScaling, TheFaultInterfacesReadTheGripperFaultAndItsOwnSeverity)
 {

@@ -194,11 +194,13 @@ registerFromFractionOf(double value, double maximum)
    return static_cast<uint8_t>(std::min(value / maximum, 1.0) * 0xFF);
 }
 
-inline constexpr double kAmperesPerCurrentCount = 0.010;
+[[deprecated("use Robotiq::units::motorCurrentFromRegister")]] inline constexpr double kAmperesPerCurrentCount =
+   Robotiq::units::kAmperesPerRegisterStep;
 
-[[nodiscard]] inline constexpr double motorCurrentFromRegister(uint8_t register_value)
+[[deprecated("use Robotiq::units::motorCurrentFromRegister")]] [[nodiscard]] inline constexpr double
+motorCurrentFromRegister(uint8_t register_value)
 {
-   return kAmperesPerCurrentCount * register_value;
+   return Robotiq::units::motorCurrentFromRegister(register_value);
 }
 
 // gFLT alone: the fault byte's high nibble is kFLT, a fault of the controller
