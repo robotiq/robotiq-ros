@@ -31,6 +31,7 @@
 #include <tinyxml2.h>
 
 #include <algorithm>
+#include <cmath>
 #include <exception>
 #include <string>
 #include <string_view>
@@ -136,11 +137,27 @@ std::optional<Robotiq::DeviceProfile> profileFromUrdf(const std::string& urdf, c
    return name ? robotiq_driver::profileNamed(*name) : Robotiq::profiles::k2F85;
 }
 
+double valueFromNormalized(double normalized, double minimum, double maximum)
+{
+   // Snapped to a register first: minimum + normalized * span, at a value
+   // halfway between two registers, often comes back from the driver's
+   // registerFromSpan one count low.
+   const double counts = std::round(std::clamp(normalized, 0.0, 1.0) * 255.0);
+   return minimum + counts / 255.0 * (maximum - minimum);
+}
+
 FullScales fullScalesFromUrdf(const std::string& urdf, const std::string& joint)
 {
    FullScales full_scales;
+   if(const std::optional<Robotiq::DeviceProfile> profile = profileFromUrdf(urdf, joint))
+   {
+      const robotiq_driver::SpeedRange speeds = robotiq_driver::commandSpeedRange(*profile);
+      full_scales.min_speed = speeds.min_speed;
+      full_scales.max_speed = speeds.max_speed;
+   }
    readFullScale(urdf, joint, robotiq_driver::kMaxSpeedParam, full_scales.max_speed);
    readFullScale(urdf, joint, robotiq_driver::kMaxForceParam, full_scales.max_force);
+   full_scales.min_speed = robotiq_driver::usableSpeedFloor(full_scales.min_speed, full_scales.max_speed);
    return full_scales;
 }
 
