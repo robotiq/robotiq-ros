@@ -231,7 +231,7 @@ private:
       }
       typename Action::Goal joint_goal = goal;
       compat::setGoalPosition(joint_goal, *position);
-      const auto convert = [this](double& value, double full_scale, const char* quantity) {
+      const auto convert = [this](double& value, double minimum, double maximum, const char* quantity) {
          const double clamped = std::clamp(value, 0.0, 1.0);
          if(clamped != value)
          {
@@ -242,12 +242,12 @@ private:
          }
          // Rounded to a register here: a value halfway between two, scaled
          // directly, can come back one count low from the driver's rounding.
-         value = std::lround(clamped * 255.0) / 255.0 * full_scale;
+         value = minimum + std::lround(clamped * 255.0) / 255.0 * (maximum - minimum);
       };
       compat::visitSpeedAndForce(
          joint_goal,
-         [&](double& speed) { convert(speed, full_scales_.max_speed, "speed"); },
-         [&](double& force) { convert(force, full_scales_.max_force, "force"); });
+         [&](double& speed) { convert(speed, full_scales_.min_speed, full_scales_.max_speed, "speed"); },
+         [&](double& force) { convert(force, 0.0, full_scales_.max_force, "force"); });
       return joint_goal;
    }
 

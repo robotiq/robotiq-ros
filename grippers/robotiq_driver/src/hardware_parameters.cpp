@@ -246,4 +246,16 @@ std::optional<double> parseFullScale(const std::string& text)
       return std::nullopt;
    }
 }
+
+std::optional<double> parseSpeedFloor(const std::string& text)
+{
+   try
+   {
+      return asSpeedFloor(text);
+   }
+   catch(const std::exception&)
+   {
+      return std::nullopt;
+   }
+}
 } // namespace robotiq_driver

@@ -119,6 +119,10 @@ struct GripperParameters
 //! parseParameters would replace with the default.
 [[nodiscard]] std::optional<double> parseFullScale(const std::string& text);
 
+//! \p text as gripper_min_speed, or nothing for a value parseParameters would
+//! replace with the default.
+[[nodiscard]] std::optional<double> parseSpeedFloor(const std::string& text);
+
 //! \p floor if it is below \p max_speed, else 0: an inverted span maps every
 //! speed to nothing, and 0 is below any usable gripper_max_speed.
 [[nodiscard]] inline double usableSpeedFloor(double floor, double max_speed)

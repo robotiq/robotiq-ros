@@ -64,11 +64,12 @@ std::optional<Robotiq::DeviceProfile> profileFromUrdf(const std::string& urdf, c
 
 struct FullScales
 {
+   double min_speed = robotiq_driver::kMinSpeedDefault;
    double max_speed = robotiq_driver::kMaxSpeedDefault;
    double max_force = robotiq_driver::kMaxForceDefault;
 };
 
-// The driver's full-scale speed and force for \p joint, as closedPositionFromUrdf
+// The driver's speed span and full-scale force for \p joint, as closedPositionFromUrdf
 // finds its parameters; the driver's defaults where it would fall back on them.
 FullScales fullScalesFromUrdf(const std::string& urdf, const std::string& joint);
 
