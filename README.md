@@ -59,7 +59,13 @@ To bump it, run one command and commit what it changes:
 ```bash
 dev/version.py --set 1.4.0  # write VERSION and every copy
 dev/version.py              # show the version, report any drift
+dev/version.py --check-pins # every SDK pin must be an existing robotiq-sdk release tag
 ```
+
+A release pins robotiq-sdk release tags: between releases a PR may pin a
+robotiq-sdk `main` commit (see [The SDKs](CONTRIBUTING.md#the-sdks)), so move
+every `sdk_version` to a tag in the bump. The *Release* workflow runs the same
+check on the bump's PR and on the pushed tag.
 
 Never edit the copies by hand. Each `package.xml` must hold the version as
 literal text, because ament, rosdep and bloom read it directly and cannot follow
@@ -162,7 +168,7 @@ The **Hand-E C10** (three concentric fingers, 120° apart, sliding radially towa
 
 The Hand-E description covers the 50 mm and the 100 mm stroke versions. `gripper_model:=hand_e` is the 50 mm one; add `hand_e_stroke:=0.100` (a launch argument of `robotiq_control.launch.py`, a xacro argument of `robotiq_hand_e_gripper.urdf.xacro`) for the 100 mm one, whose finger joint then runs `0.0` open → `0.050` closed, and whose base, fingers and `gripper_closed_position` follow. Only `0.050` and `0.100` are accepted. Force, speed and the driver's `hand_e` profile are the 50 mm version's; the 100 mm base mass is the 50 mm base's scaled by the datasheet weights (1.1 kg / 1.0 kg), with the inertia from the CAD volumes at an assumed density of 2800 kg/m³ scaled to that mass, and its meshes (`meshes/*/hand_e_100`) from the CAD with the standard fingertips. On a bench Hand-E 100 mm (raw Modbus, empty jaws, rSP 255, three full strokes each way) the register endpoints are the same as the 50 mm's (gPO 3 ↔ 250, as the `hand_e` profile has them), and a full close took 0.68 s, about 147 mm/s of opening against the manual's 150 mm/s, which fits the 0.075 m/s finger speed. It has not been run under the ROS driver.
 
-The driver runs on the [Robotiq C++ grippers SDK](https://github.com/robotiq/robotiq-sdk/tree/main/grippers), which the `robotiq_grippers_sdk_vendor` package fetches and builds at a pinned release. The SDK owns the serial link and the Modbus exchange (one FC 0x17 transaction per cycle, on its own thread); `robotiq_driver` is the `ros2_control` layer above it, and its `read()` / `write()` copy the SDK's process image rather than touching the bus.
+The driver runs on the [Robotiq C++ grippers SDK](https://github.com/robotiq/robotiq-sdk/tree/main/grippers), which the `robotiq_grippers_sdk_vendor` package fetches and builds at a pinned version. The SDK owns the serial link and the Modbus exchange (one FC 0x17 transaction per cycle, on its own thread); `robotiq_driver` is the `ros2_control` layer above it, and its `read()` / `write()` copy the SDK's process image rather than touching the bus.
 
 **Robotiq maintains this driver.** It started from PickNik Robotics'
 [`ros2_robotiq_gripper`](https://github.com/PickNikRobotics/ros2_robotiq_gripper) (BSD-3-Clause),

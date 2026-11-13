@@ -2,7 +2,7 @@
 #   - robotiq_tsf   (TSF-85 tactile sensor driver)
 #   - grippers/*    (Robotiq gripper driver, forked from PickNik)
 #   - robotiq_tactile_sdk_vendor and grippers/robotiq_grippers_sdk_vendor,
-#     which fetch the two SDKs at their pinned releases during the build
+#     which fetch the two SDKs at their pinned versions during the build
 #
 # Stage 1 (builder): full toolchain, compiles the workspace.
 # Stage 2 (runtime, default): slim — only runtime deps + the built install/, no

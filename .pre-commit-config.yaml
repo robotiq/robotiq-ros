@@ -80,3 +80,10 @@ repos:
         language: system
         files: '(^VERSION$|package\.xml$)'
         pass_filenames: false
+      # An SDK pin is a release tag or a full robotiq-sdk commit SHA.
+      - id: sdk-pin-format
+        name: SDK pins are release tags or full commit SHAs
+        entry: dev/version.py --check-pin-format
+        language: system
+        files: 'sdk_version$'
+        pass_filenames: false

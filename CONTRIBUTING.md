@@ -95,7 +95,9 @@ gripper model, firmware version and how it behaved.
 
 `robotiq_driver` and `robotiq_tsf` are ROS layers over two C++ SDKs, both in [robotiq-sdk](https://github.com/robotiq/robotiq-sdk): the grippers SDK in `grippers/` and the TSF-85 SDK in `tsf/`. Each SDK reaches ROS through a vendor package in this repository, `robotiq_grippers_sdk_vendor` and `robotiq_tactile_sdk_vendor`, which fetches and builds it during `colcon build`. The SDK repositories carry nothing ROS-specific: they are used outside ROS too, so the ROS packaging lives here, as it would for any third-party library. Git submodules would not survive a build-farm release, whose source tarball leaves them out.
 
-Each vendor package pins its SDK in its `sdk_version` file, a robotiq-sdk release tag. Moving a pin is a one-line change; a release pins a tagged SDK release.
+Each vendor package pins its SDK in its `sdk_version` file, which holds a robotiq-sdk release tag or commit. Moving a pin is a one-line change.
+
+The two repositories are often developed in parallel, so ROS work does not wait for an SDK release. A PR that needs SDK changes not yet released pins the robotiq-sdk `main` commit that brings them, by its full SHA, once the SDK PR has merged there; its description says so. Never pin a commit that is not on robotiq-sdk `main`: a feature branch can be rebased or deleted, and the pin would stop resolving. A robotiq-ros release is different: before cutting one, every pin must be a robotiq-sdk release tag, so whoever releases first gets the SDK tagged and moves the pins to it. CI checks it: the Release workflow runs `dev/version.py --check-pins` on any PR that changes `VERSION` and `--check-tag` on a pushed release tag, which also confirm each tag exists in robotiq-sdk; on every other PR it runs `--check-pin-format`, which accepts a release tag or a full 40-character commit SHA. It blocks a merge only once its *Release pins* check is required on `main`. The tactile pin stays a tag in any case, because `tactile_helpers.sh` clones it with `git clone --branch`, which takes a tag or branch but not a commit.
 
 To build against a local robotiq-sdk checkout, for example while changing the SDK and the ROS side together, point the vendor package at it, then build the rest as usual:
 
@@ -104,9 +106,9 @@ colcon build --packages-select robotiq_grippers_sdk_vendor --cmake-args -DROBOTI
 colcon build --packages-select robotiq_tactile_sdk_vendor --cmake-args -DROBOTIQ_TACTILE_SDK_SOURCE_DIR=$HOME/src/robotiq-sdk
 ```
 
-The setting sticks in the vendor package's CMake cache, so later builds keep using the checkout. Pass the variable empty, for example `-DROBOTIQ_GRIPPERS_SDK_SOURCE_DIR=`, to go back to the pinned release. The vendor package builds the product's folder in it, `grippers/sdk_cpp/` or `tsf/sdk_cpp/`. Every file under that folder counts as an input, so keep the SDK's own build tree out of it, or each build of the SDK there rebuilds the vendor package.
+The setting sticks in the vendor package's CMake cache, so later builds keep using the checkout. Pass the variable empty, for example `-DROBOTIQ_GRIPPERS_SDK_SOURCE_DIR=`, to go back to the pinned version. The vendor package builds the product's folder in it, `grippers/sdk_cpp/` or `tsf/sdk_cpp/`. Every file under that folder counts as an input, so keep the SDK's own build tree out of it, or each build of the SDK there rebuilds the vendor package.
 
-The Docker image always builds the pinned releases; the override does not reach it.
+The Docker image always builds the pinned versions; the override does not reach it.
 
 ## Compatibility
 
@@ -171,9 +173,11 @@ Two things to leave alone:
   fails any commit whose `package.xml` versions drift from `VERSION` (see
   [Versioning](README.md#versioning)). Don't bump them in a PR — a maintainer
   does that when cutting a release.
-- **The SDK pins.** Changes to the gripper or tactile SDK go to
-  [robotiq/robotiq-sdk](https://github.com/robotiq/robotiq-sdk); a
-  maintainer moves the pin (see [The SDKs](#the-sdks)).
+- **The SDK pins, unless your PR needs SDK changes.** Changes to the gripper
+  or tactile SDK go to [robotiq/robotiq-sdk](https://github.com/robotiq/robotiq-sdk).
+  A PR that depends on them may pin the robotiq-sdk `main` commit that brings
+  them; a maintainer moves the pins to a release tag before a release (see
+  [The SDKs](#the-sdks)).
 
 ## Licensing and copyright
 
