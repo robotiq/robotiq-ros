@@ -294,6 +294,16 @@ TEST(ProfileFromUrdf, ReadsTheDriverParameterOfTheJointsHardware)
    EXPECT_EQ(Robotiq::profiles::kHandE.closedPosition, profile->closedPosition);
 }
 
+TEST(ProfileFromUrdf, ReadsTheHandE100Profile)
+{
+   const std::optional<Robotiq::DeviceProfile> profile =
+      profileFromUrdf(robotiq_controllers::test::gripperUrdf("hande_left_finger_joint",
+                                                             R"(<param name="gripper_profile">hand_e_100</param>)"),
+                      "hande_left_finger_joint");
+   ASSERT_TRUE(profile.has_value());
+   EXPECT_EQ(Robotiq::profiles::kHandE100.maxOpening, profile->maxOpening);
+}
+
 TEST(ProfileFromUrdf, DefaultsToThe2F85LikeTheDriver)
 {
    const std::optional<Robotiq::DeviceProfile> profile =

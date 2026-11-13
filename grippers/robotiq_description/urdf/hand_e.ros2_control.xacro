@@ -21,7 +21,8 @@
         gripper_force_multiplier
         gripper_max_speed
         gripper_max_force
-        gripper_closed_position">
+        gripper_closed_position
+        gripper_profile">
 
         <ros2_control name="${name}" type="system">
             <xacro:robotiq_hardware
@@ -39,7 +40,7 @@
                 gripper_max_speed="${gripper_max_speed}"
                 gripper_max_force="${gripper_max_force}"
                 gripper_closed_position="${gripper_closed_position}"
-                gripper_profile="hand_e"
+                gripper_profile="${gripper_profile}"
                 trigger_joint_command_threshold="0.0005"/>
 
             <joint name="${prefix}hande_left_finger_joint">

@@ -224,6 +224,10 @@ TEST(HardwareParameters, ReadsTheProfile)
    const GripperParameters hand_e_c10 = parseParameters(info_with({{"gripper_profile", "hand_e_c10"}}), logger());
    EXPECT_EQ(Robotiq::profiles::kHandEC10.maxOpening, hand_e_c10.profile.maxOpening);
    EXPECT_NE(Robotiq::profiles::kHandE.maxOpening, hand_e_c10.profile.maxOpening);
+   // Likewise the Hand-E 100.
+   const GripperParameters hand_e_100 = parseParameters(info_with({{"gripper_profile", "hand_e_100"}}), logger());
+   EXPECT_EQ(Robotiq::profiles::kHandE100.maxOpening, hand_e_100.profile.maxOpening);
+   EXPECT_NE(Robotiq::profiles::kHandE.maxOpening, hand_e_100.profile.maxOpening);
 }
 
 TEST(HardwareParameters, ReadsAProfileSurroundedByWhitespace)

@@ -1,7 +1,7 @@
 [project]
 name = "robotiq-gripper-mcp"
 dynamic = ["version"]
-description = "MCP server exposing Robotiq 2F grippers to LLM agents through the ROS 2 driver"
+description = "MCP server exposing Robotiq grippers to LLM agents through the ROS 2 driver"
 readme = "README.md"
 license = "BSD-3-Clause"
 requires-python = ">=3.10"

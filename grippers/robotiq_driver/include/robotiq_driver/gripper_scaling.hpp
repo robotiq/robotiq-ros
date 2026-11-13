@@ -86,6 +86,10 @@ inline constexpr const char* kProfileParam = "gripper_profile";
    {
       return Robotiq::profiles::kHandE;
    }
+   if(name == "hand_e_100")
+   {
+      return Robotiq::profiles::kHandE100;
+   }
    if(name == "hand_e_c10")
    {
       return Robotiq::profiles::kHandEC10;

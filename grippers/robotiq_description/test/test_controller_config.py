@@ -811,25 +811,33 @@ def test_launch_hands_the_humble_controller_the_description_s_closed_position(
 # Humble EOL: delete this test.
 @requires_launch
 @pytest.mark.parametrize(
-    "gripper_model,joint,closed_position",
+    "gripper_model,joint,extra,profile,closed_position",
     [
-        ("hand_e", "hande_left_finger_joint", 0.025),
-        ("hand_e_c10", "hande_c10_finger_1_joint", 0.0192),
+        ("hand_e", "hande_left_finger_joint", {}, "hand_e", 0.025),
+        (
+            "hand_e",
+            "hande_left_finger_joint",
+            {"hand_e_stroke": "0.100"},
+            "hand_e_100",
+            0.05,
+        ),
+        ("hand_e_c10", "hande_c10_finger_1_joint", {}, "hand_e_c10", 0.0192),
     ],
 )
 def test_launch_hands_the_humble_controller_the_description_s_profile(
-    monkeypatch, gripper_model, joint, closed_position
+    monkeypatch, gripper_model, joint, extra, profile, closed_position
 ):
     spawned = spawned_controllers(
         "humble",
         monkeypatch,
         gripper_model=gripper_model,
         gripper_joint=joint,
+        **extra,
     )
     params = yaml.safe_load(spawned["robotiq_gripper_controller"])[
         "robotiq_gripper_controller"
     ]["ros__parameters"]
-    assert params["gripper_profile"] == gripper_model
+    assert params["gripper_profile"] == profile
     assert params["gripper_closed_position"] == closed_position
 
 

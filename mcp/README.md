@@ -1,6 +1,6 @@
 # gripper_mcp
 
-MCP server for Robotiq 2F adaptive grippers. It gives an LLM agent a small,
+MCP server for Robotiq adaptive grippers (2F and Hand-E). It gives an LLM agent a small,
 gripper-shaped tool surface and drives the `ros2_control` driver in
 [`grippers/`](../grippers/) underneath, so the same tools work against real
 hardware and against a simulator launched with `sim_topic_based:=true`.

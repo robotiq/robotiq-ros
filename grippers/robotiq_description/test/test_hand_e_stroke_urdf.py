@@ -43,7 +43,8 @@ import pytest
 PKG_DIR = Path(__file__).parents[1]
 URDF_DIR = PKG_DIR / "urdf"
 MODEL = "robotiq_hand_e_gripper.urdf.xacro"
-MESH_DIRS = {0.050: "hand_e", 0.100: "hand_e_100"}
+# Each stroke's mesh directory and SDK profile share its name.
+VARIANTS = {0.050: "hand_e", 0.100: "hand_e_100"}
 
 LEFT = "hande_left_finger_joint"
 RIGHT = "hande_right_finger_joint"
@@ -87,7 +88,7 @@ def test_the_default_is_the_0_050_description():
 
 
 @requires_xacro
-@pytest.mark.parametrize("stroke", sorted(MESH_DIRS))
+@pytest.mark.parametrize("stroke", sorted(VARIANTS))
 def test_each_finger_travels_half_the_stroke_and_the_pads_meet_when_closed(stroke):
     robot = robot_for(stroke)
 
@@ -108,14 +109,25 @@ def test_each_finger_travels_half_the_stroke_and_the_pads_meet_when_closed(strok
 
 
 @requires_xacro
-@pytest.mark.parametrize("stroke", sorted(MESH_DIRS))
-def test_the_driver_closes_at_one_finger_s_travel(stroke):
+@pytest.mark.parametrize("stroke", sorted(VARIANTS))
+def test_the_driver_closes_at_one_finger_s_travel_with_the_stroke_s_profile(stroke):
     robot = robot_for(stroke)
     params = {p.get("name"): p.text for p in robot.iter("param")}
     assert float(params["gripper_closed_position"]) == pytest.approx(stroke / 2)
-    assert params["gripper_profile"] == "hand_e"
+    assert params["gripper_profile"] == VARIANTS[stroke]
     assert float(params["gripper_max_speed"]) == 0.075
     assert float(params["gripper_max_force"]) == 185.0
+
+
+@requires_xacro
+@pytest.mark.parametrize("fake", ["false", "true"])
+@pytest.mark.parametrize("stroke", sorted(VARIANTS))
+def test_both_plugins_get_the_stroke_s_profile(stroke, fake):
+    robot = ET.fromstring(
+        expand(f"hand_e_stroke:={stroke:.3f}", f"use_fake_hardware:={fake}").stdout
+    )
+    params = {p.get("name"): p.text for p in robot.iter("param")}
+    assert params["gripper_profile"] == VARIANTS[stroke]
 
 
 WRAPPER = """<?xml version="1.0"?>
@@ -131,7 +143,7 @@ WRAPPER = """<?xml version="1.0"?>
 
 
 @requires_xacro
-@pytest.mark.parametrize("stroke", sorted(MESH_DIRS))
+@pytest.mark.parametrize("stroke", sorted(VARIANTS))
 def test_an_explicit_closed_position_overrides_the_computed_one(stroke, tmp_path):
     """The shipped wrapper does not forward gripper_closed_position, so a macro call of its own does."""
     wrapper = tmp_path / "wrapper.urdf.xacro"
@@ -147,13 +159,13 @@ def test_an_explicit_closed_position_overrides_the_computed_one(stroke, tmp_path
 
 
 @requires_xacro
-@pytest.mark.parametrize("stroke", sorted(MESH_DIRS))
+@pytest.mark.parametrize("stroke", sorted(VARIANTS))
 def test_the_meshes_come_from_the_strokes_own_folder_and_exist(stroke):
     robot = robot_for(stroke)
     files = list(mesh_files(robot))
     assert len(files) == 6
     for path in files:
-        assert path.parent.name == MESH_DIRS[stroke]
+        assert path.parent.name == VARIANTS[stroke]
         assert path.is_file(), path
 
 
