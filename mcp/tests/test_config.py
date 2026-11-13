@@ -1,4 +1,7 @@
+import os
+import re
 from pathlib import Path
+from typing import NamedTuple
 
 import pytest
 import yaml
@@ -18,19 +21,30 @@ MCP_DIR = Path(__file__).resolve().parent.parent
 EXAMPLE_WIRING = MCP_DIR / "grippers.yaml.example"
 
 MODELS = {
-    "robotiq_2f_85": 85.0,
-    "robotiq_2f_140": 140.0,
-    "robotiq_hand_e": 50.0,
-    "robotiq_hand_e_100": 100.0,
+    "robotiq_2f_85": "k2F85",
+    "robotiq_2f_140": "k2F140",
+    "robotiq_hand_e": "kHandE",
+    "robotiq_hand_e_100": "kHandE100",
 }
-SPEED_RANGES_MM_S = {
-    "robotiq_2f_85": (20.0, 150.0),
-    "robotiq_2f_140": (30.0, 250.0),
-    "robotiq_hand_e": (20.0, 150.0),
-    "robotiq_hand_e_100": (20.0, 150.0),
-}
+PROFILE_HEADER = Path("grippers/sdk_cpp/include/Robotiq/gripper/device_profile.hpp")
+PROFILE_PATTERN = re.compile(
+    r"inline\s+constexpr\s+DeviceProfile\s+(\w+)\s*\{([^}]*)\}"
+)
+HEADER_SAMPLE = """
+inline constexpr DeviceProfile k2F85{0.020, 0.150, 0.0, 0.085, 3, 230};
+
+inline constexpr DeviceProfile kHandEC10{0.014, 0.107, 0.0, 0.040, 3, 250};
+"""
+MM_PER_M = 1000.0
 TSF_85_TAXELS_PER_PAD = 28
 TACTILE_SPEC_DIR = SPEC_DIR / "tactile"
+
+
+class SdkProfile(NamedTuple):
+    min_speed_mm_s: float
+    max_speed_mm_s: float
+    min_opening_mm: float
+    max_opening_mm: float
 
 
 def wiring_file(tmp_path, entries):
@@ -49,14 +63,96 @@ def write_datasheet(tmp_path, datasheet):
     return path
 
 
+def sdk_profiles(header_text):
+    profiles = {}
+    for name, body in PROFILE_PATTERN.findall(header_text):
+        min_speed, max_speed, min_opening, max_opening, *_registers = body.split(",")
+        profiles[name] = SdkProfile(
+            min_speed_mm_s=float(min_speed) * MM_PER_M,
+            max_speed_mm_s=float(max_speed) * MM_PER_M,
+            min_opening_mm=float(min_opening) * MM_PER_M,
+            max_opening_mm=float(max_opening) * MM_PER_M,
+        )
+    return profiles
+
+
+def load_pinned_sdk_profiles():
+    sdk_dir = os.environ.get("ROBOTIQ_SDK_DIR")
+    if not sdk_dir:
+        pytest.skip(
+            "set ROBOTIQ_SDK_DIR to a robotiq-sdk checkout at the pinned sdk_version"
+        )
+
+    header = Path(sdk_dir) / PROFILE_HEADER
+    if not header.is_file():
+        pytest.fail(f"ROBOTIQ_SDK_DIR has no {header}")
+
+    profiles = sdk_profiles(header.read_text())
+    if not profiles:
+        pytest.fail(f"no DeviceProfile constants parsed from {header}")
+    return profiles
+
+
+def profile_for(model, profiles):
+    constant = MODELS[model]
+    if constant not in profiles:
+        pytest.fail(
+            f"{constant} for {model} not found in device_profile.hpp; "
+            f"found: {', '.join(sorted(profiles))}"
+        )
+    return profiles[constant]
+
+
+@pytest.fixture(scope="module")
+def pinned_sdk_profiles():
+    return load_pinned_sdk_profiles()
+
+
+def test_the_profile_parser_converts_speeds_and_openings_to_millimetres():
+    profiles = sdk_profiles(HEADER_SAMPLE)
+
+    assert set(profiles) == {"k2F85", "kHandEC10"}
+    assert profiles["kHandEC10"].min_speed_mm_s == pytest.approx(14.0)
+    assert profiles["kHandEC10"].max_speed_mm_s == pytest.approx(107.0)
+    assert profiles["kHandEC10"].min_opening_mm == pytest.approx(0.0)
+    assert profiles["kHandEC10"].max_opening_mm == pytest.approx(40.0)
+    assert profiles["k2F85"].max_opening_mm == pytest.approx(85.0)
+
+
+def test_a_mapped_constant_missing_from_the_header_fails():
+    profiles = sdk_profiles(HEADER_SAMPLE.replace("k2F85", "kOther"))
+
+    with pytest.raises(pytest.fail.Exception, match="k2F85"):
+        profile_for("robotiq_2f_85", profiles)
+
+
+def test_a_header_with_no_profiles_fails(tmp_path, monkeypatch):
+    header = tmp_path / PROFILE_HEADER
+    header.parent.mkdir(parents=True)
+    header.write_text("namespace Robotiq {}\n")
+    monkeypatch.setenv("ROBOTIQ_SDK_DIR", str(tmp_path))
+
+    with pytest.raises(pytest.fail.Exception, match="no DeviceProfile"):
+        load_pinned_sdk_profiles()
+
+
+def test_a_sdk_dir_without_the_header_fails(tmp_path, monkeypatch):
+    monkeypatch.setenv("ROBOTIQ_SDK_DIR", str(tmp_path))
+
+    with pytest.raises(pytest.fail.Exception, match="device_profile.hpp"):
+        load_pinned_sdk_profiles()
+
+
 @pytest.mark.parametrize("model", sorted(MODELS))
-def test_each_datasheet_matches_the_product_sheet(model):
+def test_each_datasheet_matches_the_pinned_sdk_profile(model, pinned_sdk_profiles):
     spec = load_model_spec(SPEC_DIR / f"{model}.yaml")
+    profile = profile_for(model, pinned_sdk_profiles)
 
     assert spec.model == model
-    assert spec.stroke.max_opening_mm == MODELS[model]
-    assert spec.stroke.min_opening_mm == 0.0
-    assert (spec.speed.min_mm_s, spec.speed.max_mm_s) == SPEED_RANGES_MM_S[model]
+    assert spec.stroke.min_opening_mm == pytest.approx(profile.min_opening_mm)
+    assert spec.stroke.max_opening_mm == pytest.approx(profile.max_opening_mm)
+    assert spec.speed.min_mm_s == pytest.approx(profile.min_speed_mm_s)
+    assert spec.speed.max_mm_s == pytest.approx(profile.max_speed_mm_s)
 
 
 def test_the_datasheets_ship_inside_the_package():
