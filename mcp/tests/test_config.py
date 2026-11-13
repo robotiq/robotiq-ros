@@ -1,3 +1,5 @@
+import os
+import re
 from pathlib import Path
 
 import pytest
@@ -18,17 +20,20 @@ MCP_DIR = Path(__file__).resolve().parent.parent
 EXAMPLE_WIRING = MCP_DIR / "grippers.yaml.example"
 
 MODELS = {
-    "robotiq_2f_85": 85.0,
-    "robotiq_2f_140": 140.0,
-    "robotiq_hand_e": 50.0,
-    "robotiq_hand_e_100": 100.0,
+    "robotiq_2f_85": "k2F85",
+    "robotiq_2f_140": "k2F140",
+    "robotiq_hand_e": "kHandE",
+    "robotiq_hand_e_100": "kHandE100",
 }
-SPEED_RANGES_MM_S = {
-    "robotiq_2f_85": (20.0, 150.0),
-    "robotiq_2f_140": (30.0, 250.0),
-    "robotiq_hand_e": (20.0, 150.0),
-    "robotiq_hand_e_100": (20.0, 150.0),
-}
+PROFILE_HEADER = Path("grippers/sdk_cpp/include/Robotiq/gripper/device_profile.hpp")
+PROFILE_PATTERN = re.compile(
+    r"inline\s+constexpr\s+DeviceProfile\s+(\w+)\s*\{([^}]*)\}"
+)
+HEADER_SAMPLE = """
+inline constexpr DeviceProfile k2F85{0.020, 0.150, 0.0, 0.085, 3, 230};
+
+inline constexpr DeviceProfile kHandEC10{0.014, 0.107, 0.0, 0.040, 3, 250};
+"""
 TSF_85_TAXELS_PER_PAD = 28
 TACTILE_SPEC_DIR = SPEC_DIR / "tactile"
 
@@ -49,14 +54,94 @@ def write_datasheet(tmp_path, datasheet):
     return path
 
 
+def sdk_profiles(header_text):
+    profiles = {}
+    for name, body in PROFILE_PATTERN.findall(header_text):
+        min_speed, max_speed, min_opening, max_opening = body.split(",")[:4]
+        profiles[name] = (
+            float(min_speed),
+            float(max_speed),
+            float(min_opening),
+            float(max_opening),
+        )
+    return profiles
+
+
+def load_pinned_sdk_profiles():
+    sdk_dir = os.environ.get("ROBOTIQ_SDK_DIR")
+    if not sdk_dir:
+        pytest.skip(
+            "set ROBOTIQ_SDK_DIR to a robotiq-sdk checkout at the pinned sdk_version"
+        )
+
+    header = Path(sdk_dir) / PROFILE_HEADER
+    if not header.is_file():
+        pytest.fail(f"ROBOTIQ_SDK_DIR has no {header}")
+
+    profiles = sdk_profiles(header.read_text())
+    if not profiles:
+        pytest.fail(f"no DeviceProfile constants parsed from {header}")
+    return profiles
+
+
+def profile_for(model, profiles):
+    constant = MODELS[model]
+    if constant not in profiles:
+        pytest.fail(
+            f"{constant} for {model} not found in device_profile.hpp; "
+            f"found: {', '.join(sorted(profiles))}"
+        )
+    return profiles[constant]
+
+
+@pytest.fixture(scope="module")
+def pinned_sdk_profiles():
+    return load_pinned_sdk_profiles()
+
+
+def test_the_profile_parser_reads_speeds_and_openings_in_metres():
+    assert sdk_profiles(HEADER_SAMPLE) == {
+        "k2F85": (0.020, 0.150, 0.0, 0.085),
+        "kHandEC10": (0.014, 0.107, 0.0, 0.040),
+    }
+
+
+def test_a_mapped_constant_missing_from_the_header_fails():
+    profiles = sdk_profiles(HEADER_SAMPLE.replace("k2F85", "kOther"))
+
+    with pytest.raises(pytest.fail.Exception, match="k2F85"):
+        profile_for("robotiq_2f_85", profiles)
+
+
+def test_a_header_with_no_profiles_fails(tmp_path, monkeypatch):
+    header = tmp_path / PROFILE_HEADER
+    header.parent.mkdir(parents=True)
+    header.write_text("namespace Robotiq {}\n")
+    monkeypatch.setenv("ROBOTIQ_SDK_DIR", str(tmp_path))
+
+    with pytest.raises(pytest.fail.Exception, match="no DeviceProfile"):
+        load_pinned_sdk_profiles()
+
+
+def test_a_sdk_dir_without_the_header_fails(tmp_path, monkeypatch):
+    monkeypatch.setenv("ROBOTIQ_SDK_DIR", str(tmp_path))
+
+    with pytest.raises(pytest.fail.Exception, match="device_profile.hpp"):
+        load_pinned_sdk_profiles()
+
+
 @pytest.mark.parametrize("model", sorted(MODELS))
-def test_each_datasheet_matches_the_product_sheet(model):
+def test_each_datasheet_matches_the_pinned_sdk_profile(model, pinned_sdk_profiles):
     spec = load_model_spec(SPEC_DIR / f"{model}.yaml")
+    min_speed, max_speed, min_opening, max_opening = profile_for(
+        model, pinned_sdk_profiles
+    )
 
     assert spec.model == model
-    assert spec.stroke.max_opening_mm == MODELS[model]
-    assert spec.stroke.min_opening_mm == 0.0
-    assert (spec.speed.min_mm_s, spec.speed.max_mm_s) == SPEED_RANGES_MM_S[model]
+    assert spec.stroke.min_opening_mm == pytest.approx(min_opening * 1000)
+    assert spec.stroke.max_opening_mm == pytest.approx(max_opening * 1000)
+    assert spec.speed.min_mm_s == pytest.approx(min_speed * 1000)
+    assert spec.speed.max_mm_s == pytest.approx(max_speed * 1000)
 
 
 def test_the_datasheets_ship_inside_the_package():
