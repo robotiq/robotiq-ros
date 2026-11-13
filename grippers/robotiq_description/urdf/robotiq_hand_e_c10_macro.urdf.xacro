@@ -66,9 +66,9 @@
 
         <xacro:include filename="$(find robotiq_description)/urdf/hand_e_c10.ros2_control.xacro" />
         <xacro:if value="${include_ros2_control}">
-            <!-- The other models take gripper_max_speed, gripper_max_force and gripper_closed_position with defaults of their own;
-                 here an empty default falls back to the properties below, so each value still has one home: the driver's full
-                 speed and force are the finger joint's limits, and it closes at one finger's travel. -->
+            <!-- The other models take gripper_max_force and gripper_closed_position with defaults of their own; here an empty
+                 default falls back to the properties below, so each value still has one home: the driver's full force is the
+                 finger joint's limit, and it closes at one finger's travel. -->
             <xacro:robotiq_gripper_ros2_control
                 name="${name}" prefix="${prefix}"
                 sim_gazebo="${sim_gazebo}"
@@ -82,7 +82,7 @@
                 slave_address="${slave_address}"
                 gripper_speed_multiplier="${gripper_speed_multiplier}"
                 gripper_force_multiplier="${gripper_force_multiplier}"
-                gripper_max_speed="${gripper_max_speed or finger_speed}"
+                gripper_max_speed="${gripper_max_speed}"
                 gripper_max_force="${gripper_max_force or finger_effort}"
                 gripper_closed_position="${gripper_closed_position or travel}"/>
         </xacro:if>

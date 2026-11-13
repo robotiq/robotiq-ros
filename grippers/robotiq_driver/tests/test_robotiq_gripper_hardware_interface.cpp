@@ -527,12 +527,13 @@ namespace {
 class RecoveringGripper : public RobotiqGripperHardwareInterface
 {
 public:
-   RecoveringGripper()
+   explicit RecoveringGripper(const std::string& extra_hardware_params = "", double speed_multiplier = 1.0)
    {
-      EXPECT_EQ(
-         CallbackReturn::SUCCESS,
-         on_init(compat::onInitParams(hardwareInfo(minimalRobotUrdf(R"(<param name="use_dummy">true</param>)")))));
+      EXPECT_EQ(CallbackReturn::SUCCESS,
+                on_init(compat::onInitParams(
+                   hardwareInfo(minimalRobotUrdf(R"(<param name="use_dummy">true</param>)" + extra_hardware_params)))));
       parameters_.connection.connectionFrequency = 20.0;
+      parameters_.speed_multiplier = speed_multiplier;
 #ifdef ROBOTIQ_DRIVER_INTERFACES_OWN_VALUES
       std::ignore = on_export_state_interfaces();
       commands_ = on_export_command_interfaces();
@@ -545,8 +546,13 @@ public:
    void requestRecovery() { setCommand(kReactivateGripperGpio, kReactivateCmdInterface, 1.0); }
    void commandPosition(double position) { setCommand(joint(), hardware_interface::HW_IF_POSITION, position); }
    void commandSpeed(double speed) { setCommand(joint(), kMaxVelocityInterface, speed); }
+   void commandForce(double force) { setCommand(joint(), kMaxEffortInterface, force); }
    uint8_t commandedPositionRegister() const { return gripper_->getCommand().positionRequest; }
    uint8_t commandedSpeedRegister() const { return gripper_->getCommand().speed; }
+   uint8_t commandedForceRegister() const { return gripper_->getCommand().force; }
+   double minSpeed() const { return parameters_.min_speed; }
+   double maxSpeed() const { return parameters_.max_speed; }
+   double maxForce() const { return parameters_.max_force; }
    bool recoveryInFlight() const { return recovery_.valid(); }
    bool recoveryHasFinished() const
    {
@@ -673,6 +679,69 @@ TEST(TestRobotiqGripperHardwareInterface, AnUnmappableSpeedKeepsThePreviousOne)
    EXPECT_EQ(hardware_interface::return_type::OK, gripper.write(rclcpp::Time{0}, rclcpp::Duration::from_seconds(0.01)));
    EXPECT_EQ(speed, gripper.commandedSpeedRegister()) << "a NaN speed reached the gripper as a register";
    EXPECT_NE(position, gripper.commandedPositionRegister()) << "the position command stopped following";
+
+   EXPECT_EQ(CallbackReturn::SUCCESS, gripper.on_deactivate(state));
+   EXPECT_EQ(CallbackReturn::SUCCESS, gripper.on_cleanup(state));
+}
+
+/**
+ * Speed is written in SI and scales over the gripper's real speed range: rSP 0
+ * is the profile's slowest speed, not a standstill, so a slower request floors there
+ * rather than asking for a speed the gripper cannot do. Force spans from zero,
+ * having no such floor, and half of it lands on 128 rather than 127: the
+ * conversion the SDK owns rounds where the driver's own used to truncate.
+ */
+TEST(TestRobotiqGripperHardwareInterface, SpeedAndForceScaleOverTheirOwnRange)
+{
+   RecoveringGripper gripper;
+   const rclcpp_lifecycle::State state;
+   using CallbackReturn = RobotiqGripperHardwareInterface::CallbackReturn;
+
+   ASSERT_EQ(CallbackReturn::SUCCESS, gripper.on_configure(state));
+   ASSERT_EQ(CallbackReturn::SUCCESS, gripper.on_activate(state));
+
+   gripper.commandPosition(0.0);
+   // Three fifths of the speed span, which is not a rounding tie the way half
+   // of the force scale is.
+   gripper.commandSpeed(gripper.minSpeed() + 0.6 * (gripper.maxSpeed() - gripper.minSpeed()));
+   gripper.commandForce(gripper.maxForce() / 2.0);
+   ASSERT_EQ(hardware_interface::return_type::OK, gripper.write(rclcpp::Time{0}, rclcpp::Duration::from_seconds(0.01)));
+   EXPECT_EQ(153, gripper.commandedSpeedRegister());
+   EXPECT_EQ(128, gripper.commandedForceRegister());
+
+   gripper.commandSpeed(gripper.minSpeed() / 2.0);
+   gripper.commandForce(0.0);
+   ASSERT_EQ(hardware_interface::return_type::OK, gripper.write(rclcpp::Time{0}, rclcpp::Duration::from_seconds(0.01)));
+   EXPECT_EQ(0, gripper.commandedSpeedRegister()) << "a speed under the gripper's minimum did not floor at rSP 0";
+   EXPECT_EQ(0, gripper.commandedForceRegister());
+
+   gripper.commandSpeed(2.0 * gripper.maxSpeed());
+   gripper.commandForce(2.0 * gripper.maxForce());
+   ASSERT_EQ(hardware_interface::return_type::OK, gripper.write(rclcpp::Time{0}, rclcpp::Duration::from_seconds(0.01)));
+   EXPECT_EQ(255, gripper.commandedSpeedRegister()) << "a speed beyond full scale wrapped instead of saturating";
+   EXPECT_EQ(255, gripper.commandedForceRegister()) << "a force beyond full scale wrapped instead of saturating";
+
+   EXPECT_EQ(CallbackReturn::SUCCESS, gripper.on_deactivate(state));
+   EXPECT_EQ(CallbackReturn::SUCCESS, gripper.on_cleanup(state));
+}
+
+/**
+ * gripper_speed_multiplier is a fraction of the register range on every
+ * model, so the seed spans the profile's speed range, not the 2F-85's: on a
+ * Hand-E, half the 2F-85's range is above the joint's top speed.
+ */
+TEST(TestRobotiqGripperHardwareInterface, TheSpeedMultiplierIsAFractionOfTheProfilesRange)
+{
+   RecoveringGripper gripper{R"(<param name="gripper_profile">hand_e</param>)", 0.5};
+   const rclcpp_lifecycle::State state;
+   using CallbackReturn = RobotiqGripperHardwareInterface::CallbackReturn;
+
+   ASSERT_EQ(CallbackReturn::SUCCESS, gripper.on_configure(state));
+   ASSERT_EQ(CallbackReturn::SUCCESS, gripper.on_activate(state));
+
+   gripper.commandPosition(0.0);
+   ASSERT_EQ(hardware_interface::return_type::OK, gripper.write(rclcpp::Time{0}, rclcpp::Duration::from_seconds(0.01)));
+   EXPECT_NEAR(127.5, gripper.commandedSpeedRegister(), 0.5);
 
    EXPECT_EQ(CallbackReturn::SUCCESS, gripper.on_deactivate(state));
    EXPECT_EQ(CallbackReturn::SUCCESS, gripper.on_cleanup(state));

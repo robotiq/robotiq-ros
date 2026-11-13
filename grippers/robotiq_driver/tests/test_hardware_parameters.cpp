@@ -198,6 +198,28 @@ TEST(HardwareParameters, ParseFullScaleTakesWhatTheParserKeeps)
    }
 }
 
+TEST(HardwareParameters, TheSpeedRangeDefaultsToTheProfiles)
+{
+   EXPECT_DOUBLE_EQ(Robotiq::profiles::k2F85.minSpeed, parseParameters(info_with(), logger()).min_speed);
+   EXPECT_DOUBLE_EQ(Robotiq::profiles::k2F85.maxSpeed, parseParameters(info_with(), logger()).max_speed);
+
+   const GripperParameters c10 = parseParameters(info_with({{"gripper_profile", "hand_e_c10"}}), logger());
+   EXPECT_DOUBLE_EQ(Robotiq::profiles::kHandEC10.minSpeed / 2.0, c10.min_speed) << "the joint is one finger";
+   EXPECT_DOUBLE_EQ(Robotiq::profiles::kHandEC10.maxSpeed / 2.0, c10.max_speed);
+
+   const GripperParameters overridden =
+      parseParameters(info_with({{"gripper_profile", "hand_e_c10"}, {"gripper_max_speed", "0.05"}}), logger());
+   EXPECT_DOUBLE_EQ(Robotiq::profiles::kHandEC10.minSpeed / 2.0, overridden.min_speed);
+   EXPECT_DOUBLE_EQ(0.05, overridden.max_speed);
+}
+
+TEST(HardwareParameters, AMaxSpeedNotAboveTheFloorScalesFromZero)
+{
+   const GripperParameters parameters = parseParameters(info_with({{"gripper_max_speed", "0.015"}}), logger());
+   EXPECT_DOUBLE_EQ(0.0, parameters.min_speed) << "the profile's floor is above this scale";
+   EXPECT_DOUBLE_EQ(0.015, parameters.max_speed);
+}
+
 TEST(HardwareParameters, AMissingClosedPositionIsFatal)
 {
    // Unlike every other parameter this one has no defensible default: a

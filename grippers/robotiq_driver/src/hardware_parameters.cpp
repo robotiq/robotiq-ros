@@ -194,8 +194,17 @@ GripperParameters parseParameters(const hardware_interface::HardwareInfo& info, 
                   "No %s: assuming the 2F-85's. Deprecated since 1.4.0; it is required from the next major release.",
                   kProfileParam);
    }
-
-   parameters.max_speed = parameterOr<double>(info, logger, kMaxSpeedParam, parameters.max_speed, asFullScale);
+   const SpeedRange speeds = commandSpeedRange(parameters.profile);
+   parameters.min_speed = speeds.min_speed;
+   parameters.max_speed = parameterOr<double>(info, logger, kMaxSpeedParam, speeds.max_speed, asFullScale);
+   if(const double floor = usableSpeedFloor(parameters.min_speed, parameters.max_speed); floor != parameters.min_speed)
+   {
+      RCLCPP_ERROR(logger,
+                   "The profile's speed floor %f is not below gripper_max_speed %f; scaling speed from 0",
+                   parameters.min_speed,
+                   parameters.max_speed);
+      parameters.min_speed = floor;
+   }
    parameters.max_force = parameterOr<double>(info, logger, kMaxForceParam, parameters.max_force, asFullScale);
    parameters.speed_multiplier =
       parameterOr<double>(info, logger, kSpeedMultiplierParam, parameters.speed_multiplier, asDouble);
