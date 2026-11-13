@@ -56,7 +56,7 @@ namespace robotiq_driver {
 inline constexpr const char* kClosedPositionParam = "gripper_closed_position";
 
 // Whether the conversions below can take \p closed_position: zero and
-// non-finite are the two they cannot divide by. Negative is fine, and is how a
+// non-finite have no direction or no scale. Negative is fine, and is how a
 // joint that closes in the negative direction is described.
 [[nodiscard]] inline bool isValidClosedPosition(double closed_position)
 {
@@ -97,29 +97,44 @@ inline constexpr const char* kProfileParam = "gripper_profile";
    return std::nullopt;
 }
 
+//! Whether the joint is the SDK's knuckle angle: a profile with a knuckle whose
+//! closed angle is \p closed_position's magnitude. A 2F description from 1.3
+//! or earlier can carry another one, and keeps the linear mapping over it.
+[[nodiscard]] inline bool isKnuckleJoint(double closed_position, const Robotiq::DeviceProfile& profile)
+{
+   return profile.hasKnuckle() && std::abs(std::abs(closed_position) - profile.knuckleAngleRange()) < 1e-6;
+}
+
 //! Register count (gPO: 0 open .. 255 closed) -> joint position, linear over
-//! \p profile's travel band. \p closed_position is the joint value at a fully
-//! closed gripper and sets the unit: the mapping carries whatever the URDF
-//! uses. The shipped 2F descriptions model the knuckle as a revolute joint,
-//! so there it is radians.
+//! the whole byte: the SDK's knuckle angle, signed like \p closed_position,
+//! when isKnuckleJoint; otherwise \p closed_position at the closed end of the band.
 [[nodiscard]] inline double jointPositionFromRegister(uint8_t position,
                                                       double closed_position,
                                                       const Robotiq::DeviceProfile& profile)
 {
+   if(isKnuckleJoint(closed_position, profile))
+   {
+      const double angle = Robotiq::units::knuckleAngleFromRegister(position, profile).value();
+      return closed_position < 0.0 ? -angle : angle;
+   }
    return closed_position * (position - profile.openPosition) / profile.registerPositionRange();
 }
 
-//! Joint position -> register count (rPR), in the same unit as
-//! \p closed_position. Counts outside the byte are clamped. Nothing when the
-//! arithmetic cannot produce a count — a NaN command, or a
-//! \p closed_position of zero: there is no defensible register value, and
-//! commanding a made-up one moves a gripper that may be holding something.
-//!
-//! Rounds, so a register round-trips through the joint value.
+//! Joint position -> register count (rPR), the inverse of
+//! jointPositionFromRegister, clamped to the byte. Nothing for a NaN command or
+//! an unusable \p closed_position.
 [[nodiscard]] inline std::optional<uint8_t> registerFromJointPosition(double joint_position,
                                                                       double closed_position,
                                                                       const Robotiq::DeviceProfile& profile)
 {
+   if(!isValidClosedPosition(closed_position))
+   {
+      return std::nullopt;
+   }
+   if(isKnuckleJoint(closed_position, profile))
+   {
+      return Robotiq::units::knuckleAngleToRegister(closed_position < 0.0 ? -joint_position : joint_position, profile);
+   }
    const double counts = (joint_position / closed_position) * profile.registerPositionRange() + profile.openPosition;
    if(!std::isfinite(counts))
    {
@@ -194,11 +209,13 @@ registerFromFractionOf(double value, double maximum)
    return static_cast<uint8_t>(std::min(value / maximum, 1.0) * 0xFF);
 }
 
-inline constexpr double kAmperesPerCurrentCount = 0.010;
+[[deprecated("use Robotiq::units::motorCurrentFromRegister")]] inline constexpr double kAmperesPerCurrentCount =
+   Robotiq::units::kAmperesPerRegisterStep;
 
-[[nodiscard]] inline constexpr double motorCurrentFromRegister(uint8_t register_value)
+[[deprecated("use Robotiq::units::motorCurrentFromRegister")]] [[nodiscard]] inline constexpr double
+motorCurrentFromRegister(uint8_t register_value)
 {
-   return kAmperesPerCurrentCount * register_value;
+   return Robotiq::units::motorCurrentFromRegister(register_value);
 }
 
 // gFLT alone: the fault byte's high nibble is kFLT, a fault of the controller

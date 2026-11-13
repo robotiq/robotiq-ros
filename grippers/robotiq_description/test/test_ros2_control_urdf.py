@@ -319,6 +319,21 @@ def test_the_prismatic_driver_s_full_speed_is_the_finger_joint_s_limit(model, jo
 
 
 @requires_xacro
+@pytest.mark.parametrize(
+    "model,floor",
+    [
+        ("robotiq_2f_85_gripper.urdf.xacro", 0.020),
+        ("robotiq_2f_140_gripper.urdf.xacro", 0.030),
+        ("robotiq_hand_e_gripper.urdf.xacro", 0.010),
+        ("robotiq_hand_e_c10_gripper.urdf.xacro", 0.007),
+    ],
+)
+def test_each_model_sets_its_speed_floor(model, floor):
+    ros2_control = expand_robot(model).find("ros2_control")
+    assert float(hardware_param(ros2_control, "gripper_min_speed")) == floor
+
+
+@requires_xacro
 def test_the_hand_e_c10_driver_s_full_force_is_the_finger_joint_s_limit():
     robot = expand_robot("robotiq_hand_e_c10_gripper.urdf.xacro")
     limit = robot.find("joint[@name='hande_c10_finger_1_joint']/limit")
@@ -398,6 +413,22 @@ def test_the_hand_e_c10_macro_takes_the_driver_limit_arguments_like_the_other_mo
     assert hardware_param(ros2_control, "gripper_max_speed") == "0.05"
     assert hardware_param(ros2_control, "gripper_max_force") == "100.0"
     assert hardware_param(ros2_control, "gripper_closed_position") == "0.01"
+
+
+@requires_xacro
+def test_a_zero_speed_floor_reaches_the_hand_e_c10_driver(tmp_path):
+    description = tmp_path / "floor.urdf.xacro"
+    description.write_text(
+        LIMIT_ARGUMENTS_C10.replace(
+            'gripper_max_speed="0.05"',
+            'gripper_min_speed="0.0" gripper_max_speed="0.05"',
+        ).format(include=URDF_DIR / "robotiq_hand_e_c10_macro.urdf.xacro")
+    )
+    result = subprocess.run(
+        ["xacro", str(description)], capture_output=True, text=True, check=True
+    )
+    ros2_control = ET.fromstring(result.stdout).find("ros2_control")
+    assert float(hardware_param(ros2_control, "gripper_min_speed")) == 0.0
 
 
 @requires_xacro

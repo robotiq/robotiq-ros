@@ -151,13 +151,15 @@ TEST(HardwareParameters, TimeoutsAreSecondsInTheUrdfAndMillisecondsInTheConfig)
 
 TEST(HardwareParameters, ReadsTheScalingParameters)
 {
-   const GripperParameters parameters = parseParameters(info_with({{"gripper_max_speed", "0.2"},
+   const GripperParameters parameters = parseParameters(info_with({{"gripper_min_speed", "0.03"},
+                                                                   {"gripper_max_speed", "0.2"},
                                                                    {"gripper_max_force", "185"},
                                                                    {"gripper_speed_multiplier", "0.75"},
                                                                    {"gripper_force_multiplier", "0.5"}}),
                                                         logger());
 
    EXPECT_DOUBLE_EQ(0.7929, parameters.closed_position);
+   EXPECT_DOUBLE_EQ(0.03, parameters.min_speed);
    EXPECT_DOUBLE_EQ(0.2, parameters.max_speed);
    EXPECT_DOUBLE_EQ(185.0, parameters.max_force);
    EXPECT_DOUBLE_EQ(0.75, parameters.speed_multiplier);
@@ -196,6 +198,31 @@ TEST(HardwareParameters, ParseFullScaleTakesWhatTheParserKeeps)
    {
       EXPECT_FALSE(parseFullScale(unusable).has_value()) << "'" << unusable << "'";
    }
+}
+
+TEST(HardwareParameters, AnUnusableSpeedFloorFallsBackToItsDefault)
+{
+   // Unlike the scales above, zero is a legal floor; only a negative or
+   // non-finite one is not.
+   for(const char* unusable : {"-0.01", "nan", "-inf"})
+   {
+      const GripperParameters parameters = parseParameters(info_with({{"gripper_min_speed", unusable}}), logger());
+
+      EXPECT_DOUBLE_EQ(kMinSpeedDefault, parameters.min_speed) << "gripper_min_speed '" << unusable << "'";
+   }
+
+   EXPECT_DOUBLE_EQ(0.0, parseParameters(info_with({{"gripper_min_speed", "0"}}), logger()).min_speed);
+}
+
+TEST(HardwareParameters, ASpeedFloorNotBelowTheScaleFallsBackToZero)
+{
+   const GripperParameters parameters =
+      parseParameters(info_with({{"gripper_min_speed", "0.2"}, {"gripper_max_speed", "0.15"}}), logger());
+   EXPECT_DOUBLE_EQ(0.0, parameters.min_speed);
+   EXPECT_DOUBLE_EQ(0.15, parameters.max_speed);
+
+   EXPECT_DOUBLE_EQ(0.0, parseParameters(info_with({{"gripper_max_speed", "0.015"}}), logger()).min_speed)
+      << "the default floor is above this scale";
 }
 
 TEST(HardwareParameters, AMissingClosedPositionIsFatal)

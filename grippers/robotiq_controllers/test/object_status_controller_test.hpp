@@ -86,6 +86,7 @@ struct Config
    double stall_timeout = 0.0;
    std::optional<double> closed_position = kClosedPosition;
    std::optional<std::string> profile;
+   std::optional<double> min_speed;
    std::optional<double> max_speed;
    std::optional<double> max_force;
 
@@ -128,6 +129,11 @@ struct Config
       max_force = force;
       return *this;
    }
+   Config& withSpeedFloor(double speed)
+   {
+      min_speed = speed;
+      return *this;
+   }
 
    // The driver parameters the description's hardware block carries.
    std::string hardwareParameters() const
@@ -140,6 +146,10 @@ struct Config
       if(profile)
       {
          parameters += R"(<param name="gripper_profile">)" + *profile + "</param>";
+      }
+      if(min_speed)
+      {
+         parameters += R"(<param name="gripper_min_speed">)" + std::to_string(*min_speed) + "</param>";
       }
       if(max_speed)
       {

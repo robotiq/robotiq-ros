@@ -19,6 +19,7 @@
         slave_address:=9
         gripper_speed_multiplier
         gripper_force_multiplier
+        gripper_min_speed
         gripper_max_speed
         gripper_max_force
         gripper_closed_position
@@ -37,6 +38,7 @@
                 slave_address="${slave_address}"
                 gripper_speed_multiplier="${gripper_speed_multiplier}"
                 gripper_force_multiplier="${gripper_force_multiplier}"
+                gripper_min_speed="${gripper_min_speed}"
                 gripper_max_speed="${gripper_max_speed}"
                 gripper_max_force="${gripper_max_force}"
                 gripper_closed_position="${gripper_closed_position}"

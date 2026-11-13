@@ -110,11 +110,15 @@ std::optional<double> closedPosition(const std::string& text)
    }
 }
 
-void readFullScale(const std::string& urdf, const std::string& joint, const char* name, double& full_scale)
+void readScale(const std::string& urdf,
+               const std::string& joint,
+               const char* name,
+               std::optional<double> (*parse)(const std::string&),
+               double& scale)
 {
    if(const std::optional<std::string> text = jointHardwareParameter(urdf, joint, name))
    {
-      full_scale = robotiq_driver::parseFullScale(*text).value_or(full_scale);
+      scale = parse(*text).value_or(scale);
    }
 }
 } // namespace
@@ -139,8 +143,10 @@ std::optional<Robotiq::DeviceProfile> profileFromUrdf(const std::string& urdf, c
 FullScales fullScalesFromUrdf(const std::string& urdf, const std::string& joint)
 {
    FullScales full_scales;
-   readFullScale(urdf, joint, robotiq_driver::kMaxSpeedParam, full_scales.max_speed);
-   readFullScale(urdf, joint, robotiq_driver::kMaxForceParam, full_scales.max_force);
+   readScale(urdf, joint, robotiq_driver::kMinSpeedParam, robotiq_driver::parseSpeedFloor, full_scales.min_speed);
+   readScale(urdf, joint, robotiq_driver::kMaxSpeedParam, robotiq_driver::parseFullScale, full_scales.max_speed);
+   readScale(urdf, joint, robotiq_driver::kMaxForceParam, robotiq_driver::parseFullScale, full_scales.max_force);
+   full_scales.min_speed = robotiq_driver::usableSpeedFloor(full_scales.min_speed, full_scales.max_speed);
    return full_scales;
 }
 

@@ -35,7 +35,6 @@
 #include <optional>
 #include <string_view>
 #include <tuple>
-#include <type_traits>
 #include <vector>
 
 #include <Robotiq/gripper/to_string.hpp>
@@ -58,37 +57,63 @@ constexpr uint8_t kOpenCount = k2F85.openPosition;
 constexpr uint8_t kClosedCount = k2F85.closedPosition;
 } // namespace
 
-TEST(GripperScaling, TravelEndpointsMapToTheJointLimits)
+TEST(GripperScaling, A2FJointIsTheSdkKnuckleAngle)
 {
-   EXPECT_DOUBLE_EQ(0.0, jointPositionFromRegister(kOpenCount, kClosedPosition, k2F85));
-   EXPECT_DOUBLE_EQ(kClosedPosition, jointPositionFromRegister(kClosedCount, kClosedPosition, k2F85));
+   for(const Robotiq::DeviceProfile& profile : {k2F85, Robotiq::profiles::k2F140})
+   {
+      for(int counts = 0; counts <= 0xFF; ++counts)
+      {
+         const auto raw = static_cast<uint8_t>(counts);
+         const double angle = Robotiq::units::knuckleAngleFromRegister(raw, profile).value();
+         EXPECT_DOUBLE_EQ(angle, jointPositionFromRegister(raw, profile.knuckleAngleRange(), profile))
+            << "at " << counts;
+         EXPECT_EQ(raw, registerFromJointPosition(angle, profile.knuckleAngleRange(), profile)) << "at " << counts;
+      }
+   }
 }
 
-TEST(GripperScaling, JointLimitsMapBackToTheTravelEndpoints)
+TEST(GripperScaling, A2FClosedPositionOtherThanTheProfilesStaysLinear)
 {
-   EXPECT_EQ(kOpenCount, registerFromJointPosition(0.0, kClosedPosition, k2F85));
-   EXPECT_EQ(kClosedCount, registerFromJointPosition(kClosedPosition, kClosedPosition, k2F85));
+   // The 2F-140 description of 1.3 closes at 0.695 rad with no gripper_profile.
+   constexpr double kLegacyClosed = 0.695;
+   EXPECT_FALSE(isKnuckleJoint(kLegacyClosed, k2F85));
+   EXPECT_DOUBLE_EQ(kLegacyClosed, jointPositionFromRegister(kClosedCount, kLegacyClosed, k2F85));
+   EXPECT_EQ(kClosedCount, registerFromJointPosition(kLegacyClosed, kLegacyClosed, k2F85));
 }
 
-TEST(GripperScaling, TheProfileSetsTheTravelBand)
+TEST(GripperScaling, AJointWithoutAKnuckleMapsLinearlyOverTheBand)
 {
-   EXPECT_DOUBLE_EQ(kClosedPosition,
-                    jointPositionFromRegister(kRemeasured2F85.closedPosition, kClosedPosition, kRemeasured2F85));
-   EXPECT_EQ(kRemeasured2F85.closedPosition,
-             registerFromJointPosition(kClosedPosition, kClosedPosition, kRemeasured2F85));
-   EXPECT_EQ(kRemeasured2F85.openPosition, registerFromJointPosition(0.0, kClosedPosition, kRemeasured2F85));
-}
-
-TEST(GripperScaling, RegisterRoundTripIsExact)
-{
+   constexpr double kHandEClosed = 0.025;
+   const Robotiq::DeviceProfile& kHandE = Robotiq::profiles::kHandE;
+   EXPECT_DOUBLE_EQ(0.0, jointPositionFromRegister(kHandE.openPosition, kHandEClosed, kHandE));
+   EXPECT_DOUBLE_EQ(kHandEClosed, jointPositionFromRegister(kHandE.closedPosition, kHandEClosed, kHandE));
    for(int counts = 0; counts <= 0xFF; ++counts)
    {
       const auto raw = static_cast<uint8_t>(counts);
-      EXPECT_EQ(
-         raw,
-         registerFromJointPosition(jointPositionFromRegister(raw, kClosedPosition, k2F85), kClosedPosition, k2F85))
-         << "at " << counts << " counts";
+      EXPECT_EQ(raw,
+                registerFromJointPosition(jointPositionFromRegister(raw, kHandEClosed, kHandE), kHandEClosed, kHandE))
+         << "at " << counts;
    }
+}
+
+TEST(GripperScaling, TheLinearMapClampsToTheByte)
+{
+   EXPECT_EQ(0, registerFromJointPosition(-1.0, 0.025, Robotiq::profiles::kHandE));
+   EXPECT_EQ(255, registerFromJointPosition(1.0, 0.025, Robotiq::profiles::kHandE));
+}
+
+TEST(GripperScaling, ANormalizedPositionForwardsTheClampWarningToTheGivenLogger)
+{
+   struct Collecting : Robotiq::Logger
+   {
+      void log(Level level, std::string_view) override { levels.push_back(level); }
+      std::vector<Level> levels;
+   };
+   const auto logger = std::make_shared<Collecting>();
+   std::ignore = jointPositionFromNormalized(0.5, kClosedPosition, k2F85, logger);
+   EXPECT_TRUE(logger->levels.empty());
+   std::ignore = jointPositionFromNormalized(1.5, kClosedPosition, k2F85, logger);
+   EXPECT_EQ(logger->levels, std::vector<Robotiq::Logger::Level>{Robotiq::Logger::Level::Warn});
 }
 
 TEST(GripperScaling, TheNormalizedEndsAreTheByteEnds)
@@ -125,45 +150,8 @@ TEST(GripperScaling, ANormalizedPositionWithNoRegisterValueCommandsNothing)
    EXPECT_FALSE(normalizedFromJointPosition(std::numeric_limits<double>::quiet_NaN(), kClosedPosition, k2F85));
 }
 
-TEST(GripperScaling, AClampedNormalizedPositionWarnsOnTheGivenLogger)
-{
-   struct Collecting : Robotiq::Logger
-   {
-      void log(Level level, std::string_view) override { levels.push_back(level); }
-      std::vector<Level> levels;
-   };
-   const auto logger = std::make_shared<Collecting>();
-   std::ignore = jointPositionFromNormalized(0.5, kClosedPosition, k2F85, logger);
-   EXPECT_TRUE(logger->levels.empty());
-   std::ignore = jointPositionFromNormalized(1.5, kClosedPosition, k2F85, logger);
-   EXPECT_EQ(logger->levels, std::vector<Robotiq::Logger::Level>{Robotiq::Logger::Level::Warn});
-}
-
-TEST(GripperScaling, ANormalizedPositionOutsideTheUnitSpanClamps)
-{
-   EXPECT_EQ(jointPositionFromNormalized(-0.5, kClosedPosition, k2F85),
-             jointPositionFromNormalized(0.0, kClosedPosition, k2F85));
-   EXPECT_EQ(jointPositionFromNormalized(1.5, kClosedPosition, k2F85),
-             jointPositionFromNormalized(1.0, kClosedPosition, k2F85));
-}
-
-TEST(GripperScaling, PositionsOutsideTheJointRangeClampIntoTheByte)
-{
-   EXPECT_EQ(0, registerFromJointPosition(-1.0, kClosedPosition, k2F85));
-   EXPECT_EQ(255, registerFromJointPosition(10.0 * kClosedPosition, kClosedPosition, k2F85));
-}
-
-TEST(GripperScaling, PositionsBelowTheTravelBandStayReachable)
-{
-   // The band starts at 3 counts, but 0..2 are still commandable: clamping is
-   // to the byte, not to the band.
-   EXPECT_LT(registerFromJointPosition(-0.005, kClosedPosition, k2F85), kOpenCount);
-}
-
 TEST(GripperScaling, AnUnusableClosedPositionCommandsNothing)
 {
-   // 0/0 and x/0 have no register to land on. Answering "nothing" keeps the
-   // caller from moving the fingers on a made-up count.
    EXPECT_FALSE(registerFromJointPosition(0.0, 0.0, k2F85).has_value());
    EXPECT_FALSE(registerFromJointPosition(0.5, 0.0, k2F85).has_value());
    EXPECT_FALSE(
@@ -173,10 +161,9 @@ TEST(GripperScaling, AnUnusableClosedPositionCommandsNothing)
 
 TEST(GripperScaling, AClosedPositionThatClosesNegativeStillMaps)
 {
-   // A joint whose closed direction is negative is a supported description:
-   // the ratio inverts and the mapping still lands in the travel band.
    EXPECT_EQ(kOpenCount, registerFromJointPosition(0.0, -kClosedPosition, k2F85));
    EXPECT_EQ(kClosedCount, registerFromJointPosition(-kClosedPosition, -kClosedPosition, k2F85));
+   EXPECT_DOUBLE_EQ(-kClosedPosition, jointPositionFromRegister(kClosedCount, -kClosedPosition, k2F85));
 }
 
 #pragma GCC diagnostic push
@@ -224,23 +211,14 @@ TEST(GripperScaling, TheDeprecatedNamesKeepThe2F85Band)
                     jointPositionFromRegister(128, kClosedPosition));
    EXPECT_EQ(registerFromJointPosition(0.4, kClosedPosition, k2F85), registerFromJointPosition(0.4, kClosedPosition));
 }
+
+TEST(GripperScaling, TheDeprecatedMotorCurrentIsTheSdks)
+{
+   EXPECT_DOUBLE_EQ(Robotiq::units::motorCurrentFromRegister(100), motorCurrentFromRegister(100));
+   EXPECT_DOUBLE_EQ(Robotiq::units::kAmperesPerRegisterStep, kAmperesPerCurrentCount);
+}
+
 #pragma GCC diagnostic pop
-
-TEST(GripperScaling, MotorCurrentIsTenMilliampsPerCount)
-{
-   EXPECT_DOUBLE_EQ(0.0, motorCurrentFromRegister(0));
-   EXPECT_DOUBLE_EQ(0.01, motorCurrentFromRegister(1));
-   EXPECT_DOUBLE_EQ(1.27, motorCurrentFromRegister(127));
-   EXPECT_DOUBLE_EQ(2.55, motorCurrentFromRegister(255));
-}
-
-TEST(GripperScaling, MotorCurrentTakesNoScaleFromTheDescription)
-{
-   // Scaling gCU by a description parameter would make one motor current read
-   // as two numbers on two robots.
-   static_assert(std::is_invocable_r_v<double, decltype(motorCurrentFromRegister), uint8_t>);
-   EXPECT_DOUBLE_EQ(1.0, motorCurrentFromRegister(100));
-}
 
 TEST(GripperScaling, TheFaultInterfacesReadTheGripperFaultAndItsOwnSeverity)
 {

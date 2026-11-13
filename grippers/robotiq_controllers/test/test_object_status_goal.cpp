@@ -32,6 +32,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <hardware_interface/component_parser.hpp>
@@ -319,17 +320,21 @@ TEST(ProfileFromUrdf, FindsNothingInANameTheDriverRejects)
       "finger_joint"));
 }
 
-std::string fullScalesUrdf(const std::string& speed, const std::string& force)
+std::string fullScalesUrdf(const std::string& speed, const std::string& force, const std::string& floor = "")
 {
-   return robotiq_controllers::test::gripperUrdf(
-      "finger_joint",
-      R"(<param name="gripper_closed_position">0.77</param><param name="gripper_max_speed">)" + speed
-         + R"(</param><param name="gripper_max_force">)" + force + "</param>");
+   std::string parameters = R"(<param name="gripper_closed_position">0.77</param><param name="gripper_max_speed">)"
+                          + speed + R"(</param><param name="gripper_max_force">)" + force + "</param>";
+   if(!floor.empty())
+   {
+      parameters += R"(<param name="gripper_min_speed">)" + floor + "</param>";
+   }
+   return robotiq_controllers::test::gripperUrdf("finger_joint", parameters);
 }
 
 TEST(FullScalesFromUrdf, ReadsTheDriverParametersOfTheJointsHardware)
 {
-   const FullScales full_scales = fullScalesFromUrdf(fullScalesUrdf("0.075", "185"), "finger_joint");
+   const FullScales full_scales = fullScalesFromUrdf(fullScalesUrdf("0.075", "185", "0.010"), "finger_joint");
+   EXPECT_DOUBLE_EQ(0.010, full_scales.min_speed);
    EXPECT_DOUBLE_EQ(0.075, full_scales.max_speed);
    EXPECT_DOUBLE_EQ(185.0, full_scales.max_force);
 }
@@ -338,6 +343,7 @@ TEST(FullScalesFromUrdf, DefaultsLikeTheDriverWithoutTheParameters)
 {
    const FullScales full_scales =
       fullScalesFromUrdf(robotiq_controllers::test::gripperUrdf("finger_joint", 0.77), "finger_joint");
+   EXPECT_DOUBLE_EQ(robotiq_driver::kMinSpeedDefault, full_scales.min_speed);
    EXPECT_DOUBLE_EQ(robotiq_driver::kMaxSpeedDefault, full_scales.max_speed);
    EXPECT_DOUBLE_EQ(robotiq_driver::kMaxForceDefault, full_scales.max_force);
 }
@@ -346,13 +352,27 @@ TEST(FullScalesFromUrdf, AgreesWithTheDriverOnTheSameDescription)
 {
    for(const char* text : {"0.075", " 0.0535 ", "7.5e-2", "0", "-0.1", "nan", "inf", "fast"})
    {
-      const std::string urdf = fullScalesUrdf(text, text);
+      const std::string urdf = fullScalesUrdf(text, text, "0.010");
       const robotiq_driver::GripperParameters driver =
          robotiq_driver::parseParameters(hardware_interface::parse_control_resources_from_urdf(urdf).at(0),
                                          rclcpp::get_logger("test"));
       const FullScales full_scales = fullScalesFromUrdf(urdf, "finger_joint");
+      EXPECT_DOUBLE_EQ(driver.min_speed, full_scales.min_speed) << "'" << text << "'";
       EXPECT_DOUBLE_EQ(driver.max_speed, full_scales.max_speed) << "'" << text << "'";
       EXPECT_DOUBLE_EQ(driver.max_force, full_scales.max_force) << "'" << text << "'";
+   }
+}
+
+TEST(FullScalesFromUrdf, AgreesWithTheDriverOnAFloorNotBelowTheScale)
+{
+   for(const auto& [speed, floor] : {std::pair{"0.015", ""}, std::pair{"0.15", "0.2"}})
+   {
+      const std::string urdf = fullScalesUrdf(speed, "185", floor);
+      const robotiq_driver::GripperParameters driver =
+         robotiq_driver::parseParameters(hardware_interface::parse_control_resources_from_urdf(urdf).at(0),
+                                         rclcpp::get_logger("test"));
+      EXPECT_DOUBLE_EQ(0.0, driver.min_speed) << speed << " " << floor;
+      EXPECT_DOUBLE_EQ(driver.min_speed, fullScalesFromUrdf(urdf, "finger_joint").min_speed) << speed << " " << floor;
    }
 }
 

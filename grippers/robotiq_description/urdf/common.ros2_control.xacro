@@ -19,6 +19,7 @@
         gripper_max_force
         gripper_closed_position
         gripper_profile:=''
+        gripper_min_speed:=''
         trigger_joint_command_threshold:=0.02">
 
         <hardware>
@@ -27,6 +28,9 @@
             <param name="use_dummy">false</param>
             <!-- On every plugin: the controllers' normalized commands need them. -->
             <param name="gripper_closed_position">${gripper_closed_position}</param>
+            <xacro:if value="${gripper_min_speed != ''}">
+                <param name="gripper_min_speed">${gripper_min_speed}</param>
+            </xacro:if>
             <param name="gripper_max_speed">${gripper_max_speed}</param>
             <param name="gripper_max_force">${gripper_max_force}</param>
             <xacro:if value="${gripper_profile != ''}">

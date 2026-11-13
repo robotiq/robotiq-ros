@@ -126,6 +126,17 @@ bool isValidFullScale(double full_scale)
    return std::isfinite(full_scale) && full_scale > 0.0;
 }
 
+//! For the low end of a span, which may sit at zero.
+double asSpeedFloor(const std::string& text)
+{
+   const double value = std::stod(text);
+   if(!std::isfinite(value) || value < 0.0)
+   {
+      throw std::invalid_argument("expected a finite value at or above zero");
+   }
+   return value;
+}
+
 double asFullScale(const std::string& text)
 {
    const double value = std::stod(text);
@@ -194,8 +205,28 @@ GripperParameters parseParameters(const hardware_interface::HardwareInfo& info, 
                   "No %s: assuming the 2F-85's. Deprecated since 1.4.0; it is required from the next major release.",
                   kProfileParam);
    }
+   if(parameters.profile.hasKnuckle() && !isKnuckleJoint(parameters.closed_position, parameters.profile))
+   {
+      RCLCPP_WARN(
+         logger,
+         "%s %f is not the profile's closed knuckle angle %f: mapping linearly over it. Deprecated since 1.4.0; "
+         "set %s to match the profile.",
+         kClosedPositionParam,
+         parameters.closed_position,
+         parameters.profile.knuckleAngleRange(),
+         kProfileParam);
+   }
 
+   parameters.min_speed = parameterOr<double>(info, logger, kMinSpeedParam, parameters.min_speed, asSpeedFloor);
    parameters.max_speed = parameterOr<double>(info, logger, kMaxSpeedParam, parameters.max_speed, asFullScale);
+   if(const double floor = usableSpeedFloor(parameters.min_speed, parameters.max_speed); floor != parameters.min_speed)
+   {
+      RCLCPP_ERROR(logger,
+                   "The speed floor %f (gripper_min_speed) is not below gripper_max_speed %f; scaling speed from 0",
+                   parameters.min_speed,
+                   parameters.max_speed);
+      parameters.min_speed = floor;
+   }
    parameters.max_force = parameterOr<double>(info, logger, kMaxForceParam, parameters.max_force, asFullScale);
    parameters.speed_multiplier =
       parameterOr<double>(info, logger, kSpeedMultiplierParam, parameters.speed_multiplier, asDouble);
@@ -221,6 +252,18 @@ std::optional<double> parseFullScale(const std::string& text)
    try
    {
       return asFullScale(text);
+   }
+   catch(const std::exception&)
+   {
+      return std::nullopt;
+   }
+}
+
+std::optional<double> parseSpeedFloor(const std::string& text)
+{
+   try
+   {
+      return asSpeedFloor(text);
    }
    catch(const std::exception&)
    {

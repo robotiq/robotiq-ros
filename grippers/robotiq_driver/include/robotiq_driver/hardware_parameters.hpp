@@ -59,12 +59,16 @@ inline constexpr auto kTimeoutDefault = std::chrono::milliseconds{500};
 inline constexpr uint8_t kSlaveAddressDefault = 0x09;
 inline constexpr double kConnectionFrequencyDefault = 100.0;
 
+inline constexpr const char* kMinSpeedParam = "gripper_min_speed";
 inline constexpr const char* kMaxSpeedParam = "gripper_max_speed";
 inline constexpr const char* kMaxForceParam = "gripper_max_force";
 
-//! Full scale of the shipped 2F-85, and so the default for
-//! gripper_max_speed / gripper_max_force.
-inline constexpr double kMaxSpeedDefault = 0.150; // m/s
+//! Speed and force range of the shipped 2F-85, and so the defaults for
+//! gripper_min_speed / gripper_max_speed / gripper_max_force. The speed
+//! floor is the SDK's, measured: rSP 0 is the gripper's slowest motion, not
+//! a standstill.
+inline constexpr double kMinSpeedDefault = Robotiq::profiles::k2F85.minSpeed; // m/s
+inline constexpr double kMaxSpeedDefault = Robotiq::profiles::k2F85.maxSpeed; // m/s
 inline constexpr double kMaxForceDefault = 235.0; // N
 
 struct GripperParameters
@@ -80,9 +84,12 @@ struct GripperParameters
    //! The SDK profile whose register band the joint mapping spans.
    Robotiq::DeviceProfile profile = Robotiq::profiles::k2F85;
 
-   //! Full-scale speed and force, used to turn the SI values written to the
+   //! Speed and force scales, used to turn the SI values written to the
    //! set_gripper_max_velocity / set_gripper_max_effort command interfaces
-   //! into rSP / rFR register fractions.
+   //! into rSP / rFR registers. min_speed is what rSP 0 actually does, so a
+   //! slower request lands there rather than on a speed the gripper cannot
+   //! reach. Force has no such floor here: the SDK profile carries none.
+   double min_speed = kMinSpeedDefault;
    double max_speed = kMaxSpeedDefault;
    double max_force = kMaxForceDefault;
 
@@ -111,4 +118,15 @@ struct GripperParameters
 //! \p text as gripper_max_speed / gripper_max_force, or nothing for a value
 //! parseParameters would replace with the default.
 [[nodiscard]] std::optional<double> parseFullScale(const std::string& text);
+
+//! \p text as gripper_min_speed, or nothing for a value parseParameters would
+//! replace with the default.
+[[nodiscard]] std::optional<double> parseSpeedFloor(const std::string& text);
+
+//! \p floor if it is below \p max_speed, else 0: an inverted span maps every
+//! speed to nothing, and 0 is below any usable gripper_max_speed.
+[[nodiscard]] inline double usableSpeedFloor(double floor, double max_speed)
+{
+   return floor < max_speed ? floor : 0.0;
+}
 } // namespace robotiq_driver

@@ -85,7 +85,9 @@ TEST_F(NormalizedSpeedAndForce, ForwardsTheValuesCommandingTheirRegisters)
    const auto& command = controller_->activeGoal()->gh_->get_goal()->command;
    ASSERT_EQ(1u, command.velocity.size());
    ASSERT_EQ(1u, command.effort.size());
-   EXPECT_EQ(128, Robotiq::units::registerFromSpan(command.velocity[0], 0.0, kNonDefaultMaxSpeed));
+   EXPECT_EQ(
+      128,
+      Robotiq::units::registerFromSpan(command.velocity[0], robotiq_driver::kMinSpeedDefault, kNonDefaultMaxSpeed));
    EXPECT_EQ(64, Robotiq::units::registerFromSpan(command.effort[0], 0.0, kNonDefaultMaxForce));
 }
 
@@ -96,7 +98,7 @@ TEST_F(NormalizedSpeedAndForce, RoundsAValueHalfwayBetweenRegistersUp)
 
    const auto& command = controller_->activeGoal()->gh_->get_goal()->command;
    ASSERT_EQ(1u, command.velocity.size());
-   EXPECT_EQ(179, Robotiq::units::registerFromSpan(command.velocity[0], 0.0, 0.1));
+   EXPECT_EQ(179, Robotiq::units::registerFromSpan(command.velocity[0], robotiq_driver::kMinSpeedDefault, 0.1));
 }
 
 TEST_F(NormalizedSpeedAndForce, ScalesByTheDriverDefaultsWithoutFullScales)
@@ -107,8 +109,21 @@ TEST_F(NormalizedSpeedAndForce, ScalesByTheDriverDefaultsWithoutFullScales)
    const auto& command = controller_->activeGoal()->gh_->get_goal()->command;
    ASSERT_EQ(1u, command.velocity.size());
    ASSERT_EQ(1u, command.effort.size());
-   EXPECT_EQ(0, Robotiq::units::registerFromSpan(command.velocity[0], 0.0, robotiq_driver::kMaxSpeedDefault));
+   EXPECT_EQ(0,
+             Robotiq::units::registerFromSpan(command.velocity[0],
+                                              robotiq_driver::kMinSpeedDefault,
+                                              robotiq_driver::kMaxSpeedDefault));
    EXPECT_EQ(255, Robotiq::units::registerFromSpan(command.effort[0], 0.0, robotiq_driver::kMaxForceDefault));
+}
+
+TEST_F(NormalizedSpeedAndForce, SpansSpeedFromTheDriverFloor)
+{
+   bringUp(Config::driver().withFullScales(kNonDefaultMaxSpeed, kNonDefaultMaxForce).withSpeedFloor(0.010));
+   sendNormalizedGoal(goal(0.5, {0.0}, {}));
+
+   const auto& command = controller_->activeGoal()->gh_->get_goal()->command;
+   ASSERT_EQ(1u, command.velocity.size());
+   EXPECT_DOUBLE_EQ(0.010, command.velocity[0]);
 }
 
 TEST_F(NormalizedSpeedAndForce, LeavesAnUnsetSpeedAndForceToGripperCmd)
@@ -129,7 +144,10 @@ TEST_F(NormalizedSpeedAndForce, ClampsAValueOutsideTheUnitSpan)
    const auto& command = controller_->activeGoal()->gh_->get_goal()->command;
    ASSERT_EQ(1u, command.velocity.size());
    ASSERT_EQ(1u, command.effort.size());
-   EXPECT_EQ(0, Robotiq::units::registerFromSpan(command.velocity[0], 0.0, robotiq_driver::kMaxSpeedDefault));
+   EXPECT_EQ(0,
+             Robotiq::units::registerFromSpan(command.velocity[0],
+                                              robotiq_driver::kMinSpeedDefault,
+                                              robotiq_driver::kMaxSpeedDefault));
    EXPECT_EQ(255, Robotiq::units::registerFromSpan(command.effort[0], 0.0, robotiq_driver::kMaxForceDefault));
 }
 

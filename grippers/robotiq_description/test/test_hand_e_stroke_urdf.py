@@ -115,6 +115,7 @@ def test_the_driver_closes_at_one_finger_s_travel_with_the_stroke_s_profile(stro
     params = {p.get("name"): p.text for p in robot.iter("param")}
     assert float(params["gripper_closed_position"]) == pytest.approx(stroke / 2)
     assert params["gripper_profile"] == VARIANTS[stroke]
+    assert float(params["gripper_min_speed"]) == 0.010
     assert float(params["gripper_max_speed"]) == 0.075
     assert float(params["gripper_max_force"]) == 185.0
 
