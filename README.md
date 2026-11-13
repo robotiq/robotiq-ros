@@ -520,6 +520,10 @@ Goal-based commanding also works without hardware: `robotiq_control.launch.py us
 
 Mock and hardware publish the same `/joint_states` contract on every distro: the knuckle joint alone, with `robot_state_publisher` deriving the mimicked finger joints from the URDF. Only the Gazebo and topic-based paths (`sim_gazebo`, `sim_topic_based`) declare the mimicked joints to `ros2_control`, since those simulators supply their own joint state.
 
+### Troubleshooting
+
+**Spawners hang or reach the wrong `/controller_manager`.** Another ROS 2 system on the same network and DDS domain (0 by default) is visible to this one, so its nodes and services mix with yours. Set `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST` (Jazzy and later) or a free `ROS_DOMAIN_ID` in every shell before launching.
+
 ## Testing
 
 Unit tests live in each package's `test/` (or `tests/`) directory and run without hardware. Build and run all tests from the repository root:

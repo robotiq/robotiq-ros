@@ -1,10 +1,14 @@
 # Robotiq Hand-E C10 datasheet. See robotiq_2f_85.yaml for what each field means.
-# Values from the Hand-E product sheet (June 2026). The C10's three fingers
-# close concentrically: opening is the diameter between the fingertips.
+# Stroke, speed and force from the C10 datasheet, the figures
+# robotiq_hand_e_c10_macro.urdf.xacro cites. The C10's three fingers close
+# concentrically: opening is the diameter between the fingertips.
 
 model: robotiq_hand_e_c10
 
 stroke:
+  # The datasheet's 40 mm, as the SDK's kHandEC10 scales gPO 3 to 250. The
+  # description's joint travel (2 x 19.2 mm, from the CAD) is ~4% shorter, so
+  # an opening here reads slightly larger than the CAD diameter change.
   max_opening_mm: 40.0
   min_opening_mm: 0.0
   # One position-register count is stroke/247 = 0.16 mm of diameter on this
@@ -12,8 +16,7 @@ stroke:
   # to 250, up to 0.16 mm short, which 0.5 mm covers.
   closed_tolerance_mm: 0.5
 
-# The 14-107 mm/s range is the rate the diameter changes; a full close at
-# rSP 255 took 0.39 s on a bench C10.
+# The 14-107 mm/s range is the rate the diameter changes.
 speed:
   min_mm_s: 14.0
   max_mm_s: 107.0
