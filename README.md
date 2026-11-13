@@ -8,7 +8,7 @@ ROS packages for Robotiq grippers and sensors.
 |---|---|---|
 | [robotiq_tsf](robotiq_tsf/) | TSF-85 tactile sensor driver | ROS 2 Humble / Jazzy / Lyrical ([main](https://github.com/robotiq/robotiq-ros/tree/main)) / ROS 1 Noetic ([noetic](https://github.com/robotiq/robotiq-ros/tree/noetic)) |
 | [grippers](grippers/) | ROS 2 `ros2_control` driver for Robotiq adaptive grippers (2F-85, 2F-140, Hand-E, Hand-E C10), on the [Robotiq C++ grippers SDK](https://github.com/robotiq/robotiq-sdk/tree/main/grippers) | ROS 2 Humble / Jazzy / Lyrical |
-| [mcp](mcp/) | MCP server exposing the 2F grippers to LLM agents, on the `grippers/` driver (plain Python project, not an ament package) | Python 3.12 + a sourced ROS 2 install |
+| [mcp](mcp/) | MCP server exposing the Robotiq grippers to LLM agents, on the `grippers/` driver (plain Python project, not an ament package) | Python 3.12 + a sourced ROS 2 install |
 
 ## Supported ROS 2 distros
 
@@ -59,7 +59,13 @@ To bump it, run one command and commit what it changes:
 ```bash
 dev/version.py --set 1.4.0  # write VERSION and every copy
 dev/version.py              # show the version, report any drift
+dev/version.py --check-pins # every SDK pin must be an existing robotiq-sdk release tag
 ```
+
+A release pins robotiq-sdk release tags: between releases a PR may pin a
+robotiq-sdk `main` commit (see [The SDKs](CONTRIBUTING.md#the-sdks)), so move
+every `sdk_version` to a tag in the bump. The *Release* workflow runs the same
+check on the bump's PR and on the pushed tag.
 
 Never edit the copies by hand. Each `package.xml` must hold the version as
 literal text, because ament, rosdep and bloom read it directly and cannot follow
@@ -154,15 +160,15 @@ In the combined launch the pad frames are TF-mounted on the gripper fingertip li
 
 ROS 2 `ros2_control` driver for Robotiq 2F adaptive grippers, under [`grippers/`](grippers/).
 
-Descriptions ship for the **2F-85**, the **2F-140**, the **Hand-E** and the **Hand-E C10**; `robotiq_control.launch.py` defaults to the 2F-85, so pass `gripper_model:=2f_140`, `gripper_model:=hand_e` or `gripper_model:=hand_e_c10` for the others. That argument selects the gripper macro in the xacro and the joint the controller drives (`robotiq_85_left_knuckle_joint`, `finger_joint`, `hande_left_finger_joint` or `hande_c10_finger_1_joint`); a custom description keeps `model:=<path>` and still sets `gripper_model` to the gripper it carries, as the controller's `goal_tolerance` and topic-based `stall_velocity_threshold` follow it, plus `gripper_joint` if its joint is named differently. The controller configs in `config/` write that joint as `$(var gripper_joint)`, which only the launch resolves — loaded directly into your own `ros2_control_node` they are not valid as they stand. Hardware validation to date is on a 2F-85, a 2F-140 and a Hand-E; the Hand-E C10 was checked on a bench unit only for the SDK profile (endpoints and speed), not through this driver.
+Descriptions ship for the **2F-85**, the **2F-140**, the **Hand-E** and the **Hand-E C10**; `robotiq_control.launch.py` defaults to the 2F-85, so pass `gripper_model:=2f_140`, `gripper_model:=hand_e` or `gripper_model:=hand_e_c10` for the others. That argument selects the gripper macro in the xacro and the joint the controller drives (`robotiq_85_left_knuckle_joint`, `finger_joint`, `hande_left_finger_joint` or `hande_c10_finger_1_joint`); a custom description keeps `model:=<path>` and still sets `gripper_model` to the gripper it carries, as the controller's `goal_tolerance` and topic-based `stall_velocity_threshold` follow it, plus `gripper_joint` if its joint is named differently. The controller configs in `config/` write that joint as `$(var gripper_joint)`, which only the launch resolves — loaded directly into your own `ros2_control_node` they are not valid as they stand. Hardware validation to date is on a 2F-85, a 2F-140, a Hand-E and a Hand-E 100; the Hand-E C10 was checked on a bench unit only for the SDK profile (endpoints and speed), not through this driver.
 
 The Hand-E's `hande_left_finger_joint` is prismatic: that finger's travel in metres, `0.0` open → `0.025` closed, the same direction as the 2F knuckle. The right finger mimics it.
 
 The **Hand-E C10** (three concentric fingers, 120° apart, sliding radially toward the axis) is selected with `gripper_model:=hand_e_c10` (or `xacro robotiq_hand_e_c10_gripper.urdf.xacro`). `hande_c10_finger_1_joint` is the driven one (that finger's travel in metres, `0.0` open → `0.0192` closed, the same direction as the Hand-E's) and the other two fingers mimic it; only that joint carries a command interface, so the action, the controllers and the topic-based simulation see one joint, as on the Hand-E. It uses the SDK's `hand_e_c10` profile, whose register endpoints (gPO 3 ↔ 250, the Hand-E's) and speed reading (the 14–107 mm/s range is the rate at which the diameter between the fingertips changes: a full close at rSP 255 takes 0.39 s) were measured on a C10 bench unit.
 
-The Hand-E description covers the 50 mm and the 100 mm stroke versions. `gripper_model:=hand_e` is the 50 mm one; add `hand_e_stroke:=0.100` (a launch argument of `robotiq_control.launch.py`, a xacro argument of `robotiq_hand_e_gripper.urdf.xacro`) for the 100 mm one, whose finger joint then runs `0.0` open → `0.050` closed, and whose base, fingers and `gripper_closed_position` follow. Only `0.050` and `0.100` are accepted. Force, speed and the driver's `hand_e` profile are the 50 mm version's; the 100 mm base mass is the 50 mm base's scaled by the datasheet weights (1.1 kg / 1.0 kg), with the inertia from the CAD volumes at an assumed density of 2800 kg/m³ scaled to that mass, and its meshes (`meshes/*/hand_e_100`) from the CAD with the standard fingertips. On a bench Hand-E 100 mm (raw Modbus, empty jaws, rSP 255, three full strokes each way) the register endpoints are the same as the 50 mm's (gPO 3 ↔ 250, as the `hand_e` profile has them), and a full close took 0.68 s, about 147 mm/s of opening against the manual's 150 mm/s, which fits the 0.075 m/s finger speed. It has not been run under the ROS driver.
+The Hand-E description covers the 50 mm and the 100 mm stroke versions. `gripper_model:=hand_e` is the 50 mm one; add `hand_e_stroke:=0.100` (a launch argument of `robotiq_control.launch.py`, a xacro argument of `robotiq_hand_e_gripper.urdf.xacro`) for the 100 mm one, whose finger joint then runs `0.0` open → `0.050` closed, and whose base, fingers and `gripper_closed_position` follow. Only `0.050` and `0.100` are accepted. Force and speed are the 50 mm version's (the product sheet gives both versions 20–150 mm/s and 20–185 N per finger); the driver takes the SDK's `hand_e_100` profile, which the description sets at `hand_e_stroke:=0.100`; the 100 mm base mass is the 50 mm base's scaled by the datasheet weights (1.1 kg / 1.0 kg), with the inertia from the CAD volumes at an assumed density of 2800 kg/m³ scaled to that mass, and its meshes (`meshes/*/hand_e_100`) from the CAD with the standard fingertips.
 
-The driver runs on the [Robotiq C++ grippers SDK](https://github.com/robotiq/robotiq-sdk/tree/main/grippers), which the `robotiq_grippers_sdk_vendor` package fetches and builds at a pinned release. The SDK owns the serial link and the Modbus exchange (one FC 0x17 transaction per cycle, on its own thread); `robotiq_driver` is the `ros2_control` layer above it, and its `read()` / `write()` copy the SDK's process image rather than touching the bus.
+The driver runs on the [Robotiq C++ grippers SDK](https://github.com/robotiq/robotiq-sdk/tree/main/grippers), which the `robotiq_grippers_sdk_vendor` package fetches and builds at a pinned version. The SDK owns the serial link and the Modbus exchange (one FC 0x17 transaction per cycle, on its own thread); `robotiq_driver` is the `ros2_control` layer above it, and its `read()` / `write()` copy the SDK's process image rather than touching the bus.
 
 **Robotiq maintains this driver.** It started from PickNik Robotics'
 [`ros2_robotiq_gripper`](https://github.com/PickNikRobotics/ros2_robotiq_gripper) (BSD-3-Clause),
@@ -439,7 +445,7 @@ None of the four beyond `position` and `velocity` are `ros2_control` standard in
 | Parameter | Default | Description |
 |---|---|---|
 | `gripper_closed_position` | *required* | Joint position at a fully closed gripper, in radians on the 2F models and metres on the Hand-E — the scale of the linear position mapping |
-| `gripper_profile` | `2f_85` | The SDK device profile whose register counts span the position mapping: `2f_85`, `2f_140`, `hand_e` or `hand_e_c10`. Every shipped description sets it; the C10's endpoints are the Hand-E's (gPO 3 ↔ 250), measured on a C10. Leaving it out keeps the 2F-85's and logs a deprecation warning, as it is required from the next major release; an unknown name fails the component |
+| `gripper_profile` | `2f_85` | The SDK device profile whose register counts span the position mapping: `2f_85`, `2f_140`, `hand_e`, `hand_e_100` or `hand_e_c10`. Every shipped description sets it; the C10's endpoints are the Hand-E's (gPO 3 ↔ 250), measured on a C10. Leaving it out keeps the 2F-85's and logs a deprecation warning, as it is required from the next major release; an unknown name fails the component |
 | `COM_port` | `/dev/ttyUSB0` | Serial port |
 | `baudrate` | `115200` | Must match the gripper's persisted setting, which is why it is also a launch argument, `baudrate:=<rate>`. Rejected outside 1..1000000. Most units stay at 115200; the gripper's own rate is changed in the Robotiq User Interface (*Modbus RTU Parameters*), not from here, and the gripper must be rebooted afterwards |
 | `timeout` | `0.5` | Per-transaction serial timeout, in seconds |

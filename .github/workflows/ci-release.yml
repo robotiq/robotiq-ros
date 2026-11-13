@@ -1,0 +1,55 @@
+# SDK pins: well-formed on every PR, release tags on a release.
+#
+# Between releases an SDK vendor package's sdk_version may pin a robotiq-sdk
+# main commit, so ROS work need not wait for an SDK release (CONTRIBUTING.md,
+# "The SDKs"). A release may not. Every PR checks that each pin is a release tag
+# or a full commit SHA; a PR that bumps VERSION, and a pushed release tag, check
+# that each pin is an existing robotiq-sdk release tag.
+#
+# No paths filter: the job reports on every PR, so it can be made a required
+# status check on main.
+name: Release
+
+on:
+  pull_request:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  sdk-pins:
+    name: Release pins
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The PR merge ref and its first parent, the base it merges into.
+          fetch-depth: 2
+      - name: Check the SDK pins
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$EVENT" = push ]; then
+            dev/version.py --check-tag "$REF_NAME"
+          elif [ "$EVENT" = workflow_dispatch ] \
+              || ! git diff --quiet HEAD^1 HEAD -- VERSION; then
+            echo "VERSION changes: a release, so every pin must be a release tag"
+            dev/version.py --check-pins
+          else
+            echo "VERSION unchanged: not a release, so a pin may be a main commit"
+            dev/version.py --check-pin-format
+          fi
+
+  version-script-tests:
+    name: dev/version.py tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run the pin check tests
+        run: |
+          python -m pip install pytest
+          python -m pytest -q dev/tests

@@ -1,0 +1,24 @@
+# Robotiq Hand-E (50 mm stroke) datasheet. See robotiq_2f_85.yaml for what each
+# field means. Values from the Hand-E product sheet (June 2026).
+
+model: robotiq_hand_e
+
+stroke:
+  max_opening_mm: 50.0
+  min_opening_mm: 0.0
+  # One position-register count is stroke/247 = 0.20 mm on this model, and an
+  # empty Hand-E close settles at gPO 249 to 250, up to 0.2 mm short; 0.5 mm
+  # covers that, as on the C10.
+  closed_tolerance_mm: 0.5
+
+speed:
+  # The rate at which the opening between the fingers changes; each finger
+  # moves at half of it.
+  min_mm_s: 20.0
+  max_mm_s: 150.0
+
+defaults:
+  # 20-185 N per finger on the product sheet; effort is a register fraction,
+  # as on the 2F-85.
+  effort: 0.2
+  motion_timeout_s: 10.0

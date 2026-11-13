@@ -4,12 +4,13 @@ project(robotiq_grippers_sdk_vendor NONE)
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_vendor_package REQUIRED)
 
-# The pinned release, in a file of its own like the tactile SDK's.
+# The pinned robotiq-sdk tag or main commit (see CONTRIBUTING.md, "The SDKs"),
+# in a file of its own like the tactile SDK's.
 file(STRINGS sdk_version _sdk_version LIMIT_COUNT 1)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS sdk_version)
 
 set(ROBOTIQ_GRIPPERS_SDK_SOURCE_DIR "" CACHE PATH
-  "Local checkout of github.com/robotiq/robotiq-sdk to build instead of the pinned release")
+  "Local checkout of github.com/robotiq/robotiq-sdk to build instead of the pinned version")
 
 # One target per source: an external project's build tree stays tied to the
 # source it was first configured from, so switching would fail to configure.
