@@ -5,6 +5,7 @@ Changelog for package robotiq_description
 Forthcoming
 -----------
 * First release on the ROS build farm. Earlier releases: https://github.com/robotiq/robotiq-ros/releases
+* Every description sets ``gripper_min_speed``: ``0.020`` m/s on the 2F-85, ``0.030`` on the 2F-140, ``0.010`` on the Hand-E and ``0.007`` on the Hand-E C10.
 * ``robotiq_gripper_ros2_control`` accepts PickNik ``main``'s ``sim_isaac``, ``isaac_joint_commands`` and ``isaac_joint_states`` arguments on the 2F-85 and the 2F-140, deprecated like in the ``robotiq_gripper`` macros.
 * Changes for users of PickNik's 0.0.1 release:
 

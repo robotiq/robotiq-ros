@@ -364,7 +364,7 @@ std::vector<hardware_interface::CommandInterface::SharedPtr> RobotiqGripperHardw
    // Seeded from the shipped full scale, not from parameters_.max_speed /
    // max_force: a description that lowers those gets a seed above its own
    // full scale, which write() then clamps to the top register value.
-   gripper_speed_ = kMaxSpeedDefault * parameters_.speed_multiplier;
+   gripper_speed_ = kMinSpeedDefault + (kMaxSpeedDefault - kMinSpeedDefault) * parameters_.speed_multiplier;
    gripper_force_ = kMaxForceDefault * parameters_.force_multiplier;
 
    const std::string& joint = info_.joints[0].name;
@@ -463,7 +463,7 @@ std::vector<hardware_interface::CommandInterface> RobotiqGripperHardwareInterfac
    // Seeded from the shipped full scale, not from parameters_.max_speed /
    // max_force: a description that lowers those gets a seed above its own
    // full scale, which write() then clamps to the top register value.
-   gripper_speed_ = kMaxSpeedDefault * parameters_.speed_multiplier;
+   gripper_speed_ = kMinSpeedDefault + (kMaxSpeedDefault - kMinSpeedDefault) * parameters_.speed_multiplier;
 
    command_interfaces.emplace_back(
       hardware_interface::CommandInterface(info_.joints[0].name, kMaxEffortInterface, &gripper_force_));
@@ -723,7 +723,8 @@ hardware_interface::return_type RobotiqGripperHardwareInterface::write(const rcl
 
    const std::optional<uint8_t> position =
       registerFromJointPosition(gripper_position_command_, parameters_.closed_position, parameters_.profile);
-   const std::optional<uint8_t> speed = Robotiq::units::registerFromSpan(gripper_speed_, 0.0, parameters_.max_speed);
+   const std::optional<uint8_t> speed =
+      Robotiq::units::registerFromSpan(gripper_speed_, parameters_.min_speed, parameters_.max_speed);
    const std::optional<uint8_t> force = Robotiq::units::registerFromSpan(gripper_force_, 0.0, parameters_.max_force);
    if(!position || !speed || !force)
    {
@@ -731,12 +732,13 @@ hardware_interface::return_type RobotiqGripperHardwareInterface::write(const rcl
                             diagnostic_clock_,
                             kDiagnosticThrottleMs,
                             "Cannot map position %f, speed %f, force %f onto gripper registers with "
-                            "gripper_closed_position %f, gripper_max_speed %f, gripper_max_force %f; "
-                            "keeping the previous command.",
+                            "gripper_closed_position %f, gripper_min_speed %f, gripper_max_speed %f, "
+                            "gripper_max_force %f; keeping the previous command.",
                             gripper_position_command_,
                             gripper_speed_,
                             gripper_force_,
                             parameters_.closed_position,
+                            parameters_.min_speed,
                             parameters_.max_speed,
                             parameters_.max_force);
    }
