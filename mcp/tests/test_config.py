@@ -22,12 +22,14 @@ MODELS = {
     "robotiq_2f_140": 140.0,
     "robotiq_hand_e": 50.0,
     "robotiq_hand_e_100": 100.0,
+    "robotiq_hand_e_c10": 40.0,
 }
 SPEED_RANGES_MM_S = {
     "robotiq_2f_85": (20.0, 150.0),
     "robotiq_2f_140": (30.0, 250.0),
     "robotiq_hand_e": (20.0, 150.0),
     "robotiq_hand_e_100": (20.0, 150.0),
+    "robotiq_hand_e_c10": (14.0, 107.0),
 }
 TSF_85_TAXELS_PER_PAD = 28
 TACTILE_SPEC_DIR = SPEC_DIR / "tactile"
