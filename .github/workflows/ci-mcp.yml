@@ -3,12 +3,15 @@
 # the colcon matrix, and COLCON_IGNORE keeps colcon out of the directory
 # anyway. It runs on Humble's and Jazzy's interpreters, 3.10 and 3.12.
 # Formatting is covered by ci-format like the rest of the repo.
+# The datasheet tests compare against robotiq-sdk's device profiles at the
+# pinned sdk_version, so a pin bump runs this job too.
 name: MCP
 
 on:
   pull_request:
     paths:
       - "mcp/**"
+      - "grippers/robotiq_grippers_sdk_vendor/sdk_version"
       - ".github/workflows/ci-mcp.yml"
   push:
     branches: [main]
@@ -27,6 +30,16 @@ jobs:
         working-directory: mcp
     steps:
       - uses: actions/checkout@v5
+      - name: Read the pinned grippers SDK version
+        id: sdk
+        working-directory: .
+        run: echo "ref=$(cat grippers/robotiq_grippers_sdk_vendor/sdk_version)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v5
+        with:
+          repository: robotiq/robotiq-sdk
+          ref: ${{ steps.sdk.outputs.ref }}
+          path: robotiq-sdk
+          sparse-checkout: grippers/sdk_cpp/include
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python }}
@@ -35,4 +48,6 @@ jobs:
       - name: Install
         run: uv sync --locked
       - name: Test
-        run: uv run pytest
+        env:
+          ROBOTIQ_SDK_DIR: ${{ github.workspace }}/robotiq-sdk
+        run: uv run pytest -rs
