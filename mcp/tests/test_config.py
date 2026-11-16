@@ -25,6 +25,7 @@ MODELS = {
     "robotiq_2f_140": "k2F140",
     "robotiq_hand_e": "kHandE",
     "robotiq_hand_e_100": "kHandE100",
+    "robotiq_hand_e_c10": "kHandEC10",
 }
 PROFILE_HEADER = Path("grippers/sdk_cpp/include/Robotiq/gripper/device_profile.hpp")
 PROFILE_PATTERN = re.compile(
