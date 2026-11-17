@@ -15,7 +15,7 @@
         slave_address:=9
         gripper_speed_multiplier
         gripper_force_multiplier
-        gripper_max_speed
+        gripper_max_speed:=''
         gripper_max_force
         gripper_closed_position
         gripper_profile:=''
@@ -27,7 +27,9 @@
             <param name="use_dummy">false</param>
             <!-- On every plugin: the controllers' normalized commands need them. -->
             <param name="gripper_closed_position">${gripper_closed_position}</param>
-            <param name="gripper_max_speed">${gripper_max_speed}</param>
+            <xacro:if value="${gripper_max_speed != ''}">
+                <param name="gripper_max_speed">${gripper_max_speed}</param>
+            </xacro:if>
             <param name="gripper_max_force">${gripper_max_force}</param>
             <xacro:if value="${gripper_profile != ''}">
                 <param name="gripper_profile">${gripper_profile}</param>

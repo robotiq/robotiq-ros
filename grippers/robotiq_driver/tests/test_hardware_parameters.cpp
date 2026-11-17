@@ -32,7 +32,9 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
+#include <robotiq_driver/gripper_scaling.hpp>
 #include <robotiq_driver/hardware_parameters.hpp>
 
 #include <rclcpp/logger.hpp>
@@ -196,6 +198,41 @@ TEST(HardwareParameters, ParseFullScaleTakesWhatTheParserKeeps)
    {
       EXPECT_FALSE(parseFullScale(unusable).has_value()) << "'" << unusable << "'";
    }
+}
+
+TEST(HardwareParameters, TheSpeedRangeDefaultsToTheProfiles)
+{
+   EXPECT_DOUBLE_EQ(Robotiq::profiles::k2F85.minSpeed, parseParameters(info_with(), logger()).min_speed);
+   EXPECT_DOUBLE_EQ(Robotiq::profiles::k2F85.maxSpeed, parseParameters(info_with(), logger()).max_speed);
+
+   const GripperParameters c10 = parseParameters(info_with({{"gripper_profile", "hand_e_c10"}}), logger());
+   EXPECT_DOUBLE_EQ(Robotiq::profiles::kHandEC10.minSpeed / 2.0, c10.min_speed) << "the joint is one finger";
+   EXPECT_DOUBLE_EQ(Robotiq::profiles::kHandEC10.maxSpeed / 2.0, c10.max_speed);
+
+   const GripperParameters overridden =
+      parseParameters(info_with({{"gripper_profile", "hand_e_c10"}, {"gripper_max_speed", "0.05"}}), logger());
+   EXPECT_DOUBLE_EQ(Robotiq::profiles::kHandEC10.minSpeed / 2.0, overridden.min_speed);
+   EXPECT_DOUBLE_EQ(0.05, overridden.max_speed);
+}
+
+TEST(HardwareParameters, OnlyTheHandEFamilysSpeedIsOneFingers)
+{
+   for(const auto& [name, share] : {std::pair{"2f_85", 1.0},
+                                    std::pair{"2f_140", 1.0},
+                                    std::pair{"hand_e", 0.5},
+                                    std::pair{"hand_e_100", 0.5},
+                                    std::pair{"hand_e_c10", 0.5}})
+   {
+      const Robotiq::DeviceProfile profile = profileNamed(name).value();
+      EXPECT_DOUBLE_EQ(share * profile.maxSpeed, commandSpeedRange(profile).max_speed) << name;
+   }
+}
+
+TEST(HardwareParameters, AMaxSpeedNotAboveTheFloorScalesFromZero)
+{
+   const GripperParameters parameters = parseParameters(info_with({{"gripper_max_speed", "0.015"}}), logger());
+   EXPECT_DOUBLE_EQ(0.0, parameters.min_speed) << "the profile's floor is above this scale";
+   EXPECT_DOUBLE_EQ(0.015, parameters.max_speed);
 }
 
 TEST(HardwareParameters, AMissingClosedPositionIsFatal)

@@ -128,6 +128,13 @@ bool hasFinished(const std::future<Robotiq::ActivationResult>& recovery)
 {
    return recovery.valid() && recovery.wait_for(std::chrono::seconds{0}) == std::future_status::ready;
 }
+
+// gripper_speed_multiplier is a fraction of the register range, so it spans
+// the speed range the parameters give, not the 2F-85's.
+double seededSpeed(const GripperParameters& parameters)
+{
+   return parameters.min_speed + (parameters.max_speed - parameters.min_speed) * parameters.speed_multiplier;
+}
 } // namespace
 
 RobotiqGripperHardwareInterface::RobotiqGripperHardwareInterface() = default;
@@ -361,11 +368,8 @@ std::vector<hardware_interface::CommandInterface::SharedPtr> RobotiqGripperHardw
    std::vector<hardware_interface::CommandInterface::SharedPtr> command_interfaces =
       SystemInterface::on_export_command_interfaces();
 
-   // Seeded from the shipped full scale, not from parameters_.max_speed /
-   // max_force: a description that lowers those gets a seed above its own
-   // full scale, which write() then clamps to the top register value.
-   gripper_speed_ = kMaxSpeedDefault * parameters_.speed_multiplier;
-   gripper_force_ = kMaxForceDefault * parameters_.force_multiplier;
+   gripper_speed_ = seededSpeed(parameters_);
+   gripper_force_ = parameters_.max_force * parameters_.force_multiplier;
 
    const std::string& joint = info_.joints[0].name;
    exported_commands_.clear();
@@ -460,14 +464,11 @@ std::vector<hardware_interface::CommandInterface> RobotiqGripperHardwareInterfac
 
    command_interfaces.emplace_back(
       hardware_interface::CommandInterface(info_.joints[0].name, kMaxVelocityInterface, &gripper_speed_));
-   // Seeded from the shipped full scale, not from parameters_.max_speed /
-   // max_force: a description that lowers those gets a seed above its own
-   // full scale, which write() then clamps to the top register value.
-   gripper_speed_ = kMaxSpeedDefault * parameters_.speed_multiplier;
+   gripper_speed_ = seededSpeed(parameters_);
 
    command_interfaces.emplace_back(
       hardware_interface::CommandInterface(info_.joints[0].name, kMaxEffortInterface, &gripper_force_));
-   gripper_force_ = kMaxForceDefault * parameters_.force_multiplier;
+   gripper_force_ = parameters_.max_force * parameters_.force_multiplier;
 
    command_interfaces.emplace_back(
       hardware_interface::CommandInterface(reactivate_gpio_, kReactivateCmdInterface, &reactivate_gripper_cmd_));
@@ -558,7 +559,7 @@ hardware_interface::CallbackReturn RobotiqGripperHardwareInterface::on_activate(
    // any hold target derived from it, describe where the fingers actually are.
    gripper_position_ = jointPositionFromRegister(status.position, parameters_.closed_position, parameters_.profile);
    gripper_velocity_ = 0.0;
-   gripper_motor_current_ = motorCurrentFromRegister(status.current);
+   gripper_motor_current_ = Robotiq::units::motorCurrentFromRegister(status.current);
    gripper_object_status_ = static_cast<double>(status.gripperStatus.objectDetection());
    gripper_fault_ = {gripperFaultFromRegister(status.faultStatus),
                      gripperFaultSeverityFromRegister(status.faultStatus)};
@@ -624,7 +625,7 @@ hardware_interface::return_type RobotiqGripperHardwareInterface::read(const rclc
    // The status block carries no velocity — the gripper reports position and
    // motor current only.
    gripper_velocity_ = 0.0;
-   gripper_motor_current_ = motorCurrentFromRegister(status.current);
+   gripper_motor_current_ = Robotiq::units::motorCurrentFromRegister(status.current);
    gripper_object_status_ = objectStatusValue(status.gripperStatus.objectDetection(), connection);
    gripper_fault_ = {gripperFaultFromRegister(status.faultStatus),
                      gripperFaultSeverityFromRegister(status.faultStatus)};
@@ -723,7 +724,8 @@ hardware_interface::return_type RobotiqGripperHardwareInterface::write(const rcl
 
    const std::optional<uint8_t> position =
       registerFromJointPosition(gripper_position_command_, parameters_.closed_position, parameters_.profile);
-   const std::optional<uint8_t> speed = Robotiq::units::registerFromSpan(gripper_speed_, 0.0, parameters_.max_speed);
+   const std::optional<uint8_t> speed =
+      Robotiq::units::registerFromSpan(gripper_speed_, parameters_.min_speed, parameters_.max_speed);
    const std::optional<uint8_t> force = Robotiq::units::registerFromSpan(gripper_force_, 0.0, parameters_.max_force);
    if(!position || !speed || !force)
    {
@@ -731,12 +733,13 @@ hardware_interface::return_type RobotiqGripperHardwareInterface::write(const rcl
                             diagnostic_clock_,
                             kDiagnosticThrottleMs,
                             "Cannot map position %f, speed %f, force %f onto gripper registers with "
-                            "gripper_closed_position %f, gripper_max_speed %f, gripper_max_force %f; "
-                            "keeping the previous command.",
+                            "gripper_closed_position %f, speed range %f to %f, "
+                            "gripper_max_force %f; keeping the previous command.",
                             gripper_position_command_,
                             gripper_speed_,
                             gripper_force_,
                             parameters_.closed_position,
+                            parameters_.min_speed,
                             parameters_.max_speed,
                             parameters_.max_force);
    }

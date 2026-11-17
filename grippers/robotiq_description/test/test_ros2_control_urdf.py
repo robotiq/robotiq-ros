@@ -201,7 +201,7 @@ def test_mock_publishes_the_same_joints_as_hardware(model, joint):
 def test_every_plugin_gets_the_joint_scale(model, use_fake_hardware, extra_args):
     ros2_control = expand(model, use_fake_hardware, *extra_args)
     assert hardware_param(ros2_control, "gripper_closed_position") is not None
-    assert hardware_param(ros2_control, "gripper_max_speed") is not None
+    assert hardware_param(ros2_control, "gripper_profile") is not None
     assert hardware_param(ros2_control, "gripper_max_force") is not None
 
 
@@ -304,18 +304,10 @@ def expand_robot(model):
 
 
 @requires_xacro
-@pytest.mark.parametrize(
-    "model,joint",
-    [
-        ("robotiq_hand_e_gripper.urdf.xacro", "hande_left_finger_joint"),
-        ("robotiq_hand_e_c10_gripper.urdf.xacro", "hande_c10_finger_1_joint"),
-    ],
-)
-def test_the_prismatic_driver_s_full_speed_is_the_finger_joint_s_limit(model, joint):
-    robot = expand_robot(model)
-    limit = robot.find(f"joint[@name='{joint}']/limit")
-    max_speed = hardware_param(robot.find("ros2_control"), "gripper_max_speed")
-    assert float(max_speed) == float(limit.get("velocity"))
+@pytest.mark.parametrize("model", MODELS)
+def test_shipped_descriptions_leave_the_speed_range_to_the_sdk_profile(model):
+    ros2_control = expand(model, False)
+    assert hardware_param(ros2_control, "gripper_max_speed") is None
 
 
 @requires_xacro
