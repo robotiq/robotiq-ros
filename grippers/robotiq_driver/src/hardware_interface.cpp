@@ -369,10 +369,7 @@ std::vector<hardware_interface::CommandInterface::SharedPtr> RobotiqGripperHardw
       SystemInterface::on_export_command_interfaces();
 
    gripper_speed_ = seededSpeed(parameters_);
-   // Seeded from the shipped full scale, not from parameters_.max_force: a
-   // description that lowers it gets a seed above its own full scale, which
-   // write() then clamps to the top register value.
-   gripper_force_ = kMaxForceDefault * parameters_.force_multiplier;
+   gripper_force_ = parameters_.max_force * parameters_.force_multiplier;
 
    const std::string& joint = info_.joints[0].name;
    exported_commands_.clear();
@@ -471,10 +468,7 @@ std::vector<hardware_interface::CommandInterface> RobotiqGripperHardwareInterfac
 
    command_interfaces.emplace_back(
       hardware_interface::CommandInterface(info_.joints[0].name, kMaxEffortInterface, &gripper_force_));
-   // Seeded from the shipped full scale, not from parameters_.max_force: a
-   // description that lowers it gets a seed above its own full scale, which
-   // write() then clamps to the top register value.
-   gripper_force_ = kMaxForceDefault * parameters_.force_multiplier;
+   gripper_force_ = parameters_.max_force * parameters_.force_multiplier;
 
    command_interfaces.emplace_back(
       hardware_interface::CommandInterface(reactivate_gpio_, kReactivateCmdInterface, &reactivate_gripper_cmd_));

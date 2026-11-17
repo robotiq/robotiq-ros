@@ -79,7 +79,7 @@ struct SpeedRange
 //! the knuckle angle, in radians.
 [[nodiscard]] inline bool jointIsOneFinger(const Robotiq::DeviceProfile& profile)
 {
-   return profile.knuckleAnglePerCount <= 0.0;
+   return !profile.hasKnuckle();
 }
 
 //! The range of the speeds written to set_gripper_max_velocity, from \p

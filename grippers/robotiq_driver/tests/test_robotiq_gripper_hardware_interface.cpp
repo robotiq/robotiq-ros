@@ -97,7 +97,6 @@ std::string gripperElements(const std::string& extra_hardware_params, const std:
         + prefix + kComponentName + R"(" type="system">
             <hardware>
               <plugin>robotiq_driver/RobotiqGripperHardwareInterface</plugin>
-              <param name="gripper_speed_multiplier">1.0</param>
               <param name="gripper_force_multiplier">0.5</param>
               <param name="COM_port">/dev/ttyUSB0</param>
               <param name="gripper_closed_position">0.7929</param>
@@ -527,13 +526,12 @@ namespace {
 class RecoveringGripper : public RobotiqGripperHardwareInterface
 {
 public:
-   explicit RecoveringGripper(const std::string& extra_hardware_params = "", double speed_multiplier = 1.0)
+   explicit RecoveringGripper(const std::string& extra_hardware_params = "")
    {
       EXPECT_EQ(CallbackReturn::SUCCESS,
                 on_init(compat::onInitParams(
                    hardwareInfo(minimalRobotUrdf(R"(<param name="use_dummy">true</param>)" + extra_hardware_params)))));
       parameters_.connection.connectionFrequency = 20.0;
-      parameters_.speed_multiplier = speed_multiplier;
 #ifdef ROBOTIQ_DRIVER_INTERFACES_OWN_VALUES
       std::ignore = on_export_state_interfaces();
       commands_ = on_export_command_interfaces();
@@ -688,8 +686,7 @@ TEST(TestRobotiqGripperHardwareInterface, AnUnmappableSpeedKeepsThePreviousOne)
  * Speed is written in SI and scales over the gripper's real speed range: rSP 0
  * is the profile's slowest speed, not a standstill, so a slower request floors there
  * rather than asking for a speed the gripper cannot do. Force spans from zero,
- * having no such floor, and half of it lands on 128 rather than 127: the
- * conversion the SDK owns rounds where the driver's own used to truncate.
+ * having no such floor, and half of it lands on 128 rather than 127.
  */
 TEST(TestRobotiqGripperHardwareInterface, SpeedAndForceScaleOverTheirOwnRange)
 {
@@ -730,9 +727,11 @@ TEST(TestRobotiqGripperHardwareInterface, SpeedAndForceScaleOverTheirOwnRange)
  * model, so the seed spans the profile's speed range, not the 2F-85's: on a
  * Hand-E, half the 2F-85's range is above the joint's top speed.
  */
-TEST(TestRobotiqGripperHardwareInterface, TheSpeedMultiplierIsAFractionOfTheProfilesRange)
+TEST(TestRobotiqGripperHardwareInterface, TheMultipliersAreFractionsOfTheirFullScales)
 {
-   RecoveringGripper gripper{R"(<param name="gripper_profile">hand_e</param>)", 0.5};
+   RecoveringGripper gripper{R"(<param name="gripper_profile">hand_e</param>
+                                <param name="gripper_max_force">185</param>
+                                <param name="gripper_speed_multiplier">0.5</param>)"};
    const rclcpp_lifecycle::State state;
    using CallbackReturn = RobotiqGripperHardwareInterface::CallbackReturn;
 
@@ -742,6 +741,7 @@ TEST(TestRobotiqGripperHardwareInterface, TheSpeedMultiplierIsAFractionOfTheProf
    gripper.commandPosition(0.0);
    ASSERT_EQ(hardware_interface::return_type::OK, gripper.write(rclcpp::Time{0}, rclcpp::Duration::from_seconds(0.01)));
    EXPECT_NEAR(127.5, gripper.commandedSpeedRegister(), 0.5);
+   EXPECT_EQ(128, gripper.commandedForceRegister()); // gripper_force_multiplier 0.5
 
    EXPECT_EQ(CallbackReturn::SUCCESS, gripper.on_deactivate(state));
    EXPECT_EQ(CallbackReturn::SUCCESS, gripper.on_cleanup(state));

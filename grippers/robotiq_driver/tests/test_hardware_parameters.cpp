@@ -32,7 +32,9 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
+#include <robotiq_driver/gripper_scaling.hpp>
 #include <robotiq_driver/hardware_parameters.hpp>
 
 #include <rclcpp/logger.hpp>
@@ -211,6 +213,19 @@ TEST(HardwareParameters, TheSpeedRangeDefaultsToTheProfiles)
       parseParameters(info_with({{"gripper_profile", "hand_e_c10"}, {"gripper_max_speed", "0.05"}}), logger());
    EXPECT_DOUBLE_EQ(Robotiq::profiles::kHandEC10.minSpeed / 2.0, overridden.min_speed);
    EXPECT_DOUBLE_EQ(0.05, overridden.max_speed);
+}
+
+TEST(HardwareParameters, OnlyTheHandEFamilysSpeedIsOneFingers)
+{
+   for(const auto& [name, share] : {std::pair{"2f_85", 1.0},
+                                    std::pair{"2f_140", 1.0},
+                                    std::pair{"hand_e", 0.5},
+                                    std::pair{"hand_e_100", 0.5},
+                                    std::pair{"hand_e_c10", 0.5}})
+   {
+      const Robotiq::DeviceProfile profile = profileNamed(name).value();
+      EXPECT_DOUBLE_EQ(share * profile.maxSpeed, commandSpeedRange(profile).max_speed) << name;
+   }
 }
 
 TEST(HardwareParameters, AMaxSpeedNotAboveTheFloorScalesFromZero)
