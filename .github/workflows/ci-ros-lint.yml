@@ -7,6 +7,11 @@
 # these linters check style, not API, so a second and third distro would only
 # re-run the same checks against different linter versions. Jazzy is the
 # reference; .pre-commit-config.yaml (ci-format) is the formatting authority.
+#
+# Runs in ros:jazzy-ros-base, as ci-ros-build-test does, instead of setup-ros:
+# setup-ros looks up the ROS apt source's version through the GitHub API without
+# a token, and failed about one run in nine when rate limited. action-ros-lint
+# calls sudo, which the image lacks.
 name: ROS Lint
 
 on:
@@ -26,9 +31,12 @@ jobs:
       fail-fast: false
       matrix:
         linter: [copyright, lint_cmake]
+    container:
+      image: ros:jazzy-ros-base
     steps:
+      - name: Install tooling missing from ros-base
+        run: apt-get update && apt-get install -y git sudo
       - uses: actions/checkout@v5
-      - uses: ros-tooling/setup-ros@v0.7
       - uses: ros-tooling/action-ros-lint@v0.1
         with:
           distribution: jazzy
@@ -47,9 +55,12 @@ jobs:
   ament_cpplint:
     name: ament_cpplint
     runs-on: ubuntu-24.04
+    container:
+      image: ros:jazzy-ros-base
     steps:
+      - name: Install tooling missing from ros-base
+        run: apt-get update && apt-get install -y git sudo
       - uses: actions/checkout@v5
-      - uses: ros-tooling/setup-ros@v0.7
       - uses: ros-tooling/action-ros-lint@v0.1
         with:
           distribution: jazzy

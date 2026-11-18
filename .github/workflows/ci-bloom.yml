@@ -19,6 +19,9 @@ on:
       - "robotiq_tactile_sdk_vendor/**"
       - ".github/workflows/ci-bloom.yml"
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -31,9 +34,20 @@ jobs:
           - {ros: lyrical,  deb: resolute}
 
     steps:
-      - uses: jspricke/ros-deb-builder-action@aacb5111976551aee90170dafa2cc615bc16760f
-        with:
+      # The action installs bloom and rosdep from its author's PPA, which has
+      # returned 503s for minutes at a time: retry once after a short wait.
+      - id: build
+        uses: &deb-builder jspricke/ros-deb-builder-action@aacb5111976551aee90170dafa2cc615bc16760f # main as of 2026-11-18
+        continue-on-error: true
+        with: &build-inputs
           DEB_DISTRO: ${{ matrix.deb }}
           ROS_DISTRO: ${{ matrix.ros }}
           SQUASH_HISTORY: true
           SBUILD_CONF: "$enable_network = 1;"
+      - name: Wait before retrying
+        if: steps.build.outcome == 'failure'
+        run: sleep 120
+      - name: Retry the build
+        if: steps.build.outcome == 'failure'
+        uses: *deb-builder
+        with: *build-inputs
