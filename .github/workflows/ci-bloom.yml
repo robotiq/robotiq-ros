@@ -1,0 +1,39 @@
+# Build Debian packages in isolation to check that dependencies have been
+# declared properly.
+
+name: Bloom Debian Package
+
+on:
+  push:
+    branches:
+      main
+    paths:
+      - "grippers/**"
+      - "robotiq_tsf/**"
+      - "robotiq_tactile_sdk_vendor/**"
+      - ".github/workflows/ci-bloom.yml"
+  pull_request:
+    paths:
+      - "grippers/**"
+      - "robotiq_tsf/**"
+      - "robotiq_tactile_sdk_vendor/**"
+      - ".github/workflows/ci-bloom.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {ros: humble,   deb: jammy} # Humble EOL: delete this entry.
+          - {ros: jazzy,    deb: noble}
+          - {ros: lyrical,  deb: resolute}
+
+    steps:
+      - uses: jspricke/ros-deb-builder-action@aacb5111976551aee90170dafa2cc615bc16760f
+        with:
+          DEB_DISTRO: ${{ matrix.deb }}
+          ROS_DISTRO: ${{ matrix.ros }}
+          SQUASH_HISTORY: true
+          SBUILD_CONF: "$enable_network = 1;"

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.22)
 project(robotiq_tsf LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
