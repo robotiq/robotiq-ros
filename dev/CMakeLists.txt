@@ -16,7 +16,7 @@
 # or point the IDE at dev/CMakeLists.txt and pick the "ide" preset (Qt Creator:
 # Open File or Project). See CMakePresets.json beside this file.
 
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.22)
 project(robotiq_ros_ide LANGUAGES CXX)
 
 find_package(ament_cmake REQUIRED)

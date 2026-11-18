@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.22)
 project(robotiq_msgs)
 
 find_package(ament_cmake REQUIRED)
