@@ -66,10 +66,10 @@ target_link_libraries(${PROJECT_NAME}
 
 pluginlib_export_plugin_description_file(controller_interface controller_plugins.xml)
 
-# The gripper action controller derives from parallel_gripper_controller, which
-# arrived in Jazzy; on Humble its counterpart derives from the predecessor,
-# gripper_controllers. Humble EOL: simplify — keep the else branch, unconditionally.
-if("$ENV{ROS_DISTRO}" STREQUAL "humble")
+# Prefer parallel_gripper_controller when available; fall back to its predecessor.
+find_package(parallel_gripper_controller QUIET)
+
+if(NOT parallel_gripper_controller_FOUND)
   find_package(gripper_controllers REQUIRED)
   target_sources(${PROJECT_NAME} PRIVATE src/gripper_command_controller.cpp)
   target_link_libraries(${PROJECT_NAME}
