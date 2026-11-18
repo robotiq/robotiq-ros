@@ -66,10 +66,17 @@ target_link_libraries(${PROJECT_NAME}
 
 pluginlib_export_plugin_description_file(controller_interface controller_plugins.xml)
 
-# Prefer parallel_gripper_controller when available; fall back to its predecessor.
-find_package(parallel_gripper_controller QUIET)
+# The gripper action controller derives from parallel_gripper_controller, which
+# arrived in Jazzy; on Humble its counterpart derives from the predecessor,
+# gripper_controllers. Choose by ROS_DISTRO, as package.xml and the launch file
+# do. ros_environment (a build_depend) sets it; an isolated package build has
+# nothing else that does. Humble EOL: simplify — keep the else branch,
+# unconditionally, and drop the check below.
+if("$ENV{ROS_DISTRO}" STREQUAL "")
+  message(FATAL_ERROR "ROS_DISTRO is not set: source the ROS setup, or install ros_environment.")
+endif()
 
-if(NOT parallel_gripper_controller_FOUND)
+if("$ENV{ROS_DISTRO}" STREQUAL "humble")
   find_package(gripper_controllers REQUIRED)
   target_sources(${PROJECT_NAME} PRIVATE src/gripper_command_controller.cpp)
   target_link_libraries(${PROJECT_NAME}
