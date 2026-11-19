@@ -41,4 +41,15 @@ ament_vendor(${_sdk_target}
     -DGRIPPERS_WARNINGS_AS_ERRORS=OFF
 )
 
+# The SDK compiles in nanoMODBUS, whose MIT license must ship with the binary.
+externalproject_get_property(${_sdk_target} SOURCE_DIR)
+if(ROBOTIQ_GRIPPERS_SDK_SOURCE_DIR)
+  set(_sdk_cpp_dir "${SOURCE_DIR}")
+else()
+  set(_sdk_cpp_dir "${SOURCE_DIR}/grippers/sdk_cpp")
+endif()
+install(FILES "${_sdk_cpp_dir}/third_party/nanomodbus/LICENSE"
+  DESTINATION share/${PROJECT_NAME}
+  RENAME LICENSE.nanomodbus)
+
 ament_package()
