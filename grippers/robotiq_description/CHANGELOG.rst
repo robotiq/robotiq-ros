@@ -2,8 +2,8 @@
 Changelog for package robotiq_description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.4.0 (2026-11-19)
+------------------
 * First release on the ROS build farm. Earlier releases: https://github.com/robotiq/robotiq-ros/releases
 * Hand-E and Hand-E C10 descriptions, selected with ``gripper_model`` ``hand_e`` and ``hand_e_c10``.
 * ``slave_address`` launch and macro argument, default 9, for a gripper at a non-default Modbus address.

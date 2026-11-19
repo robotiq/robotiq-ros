@@ -2,6 +2,6 @@
 Changelog for package robotiq_grippers_sdk_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.4.0 (2026-11-19)
+------------------
 * First release.

@@ -2,8 +2,8 @@
 Changelog for package robotiq_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.4.0 (2026-11-19)
+------------------
 * First release on the ROS build farm. Earlier releases: https://github.com/robotiq/robotiq-ros/releases
 * Position, speed and force round to the nearest register instead of truncating, so the same goal can land one count higher.
 * ``gripper_profile`` selects the gripper's position count band from the SDK's device profile, and an unknown profile fails at startup. Without it the driver warns and keeps the 2F-85's band.

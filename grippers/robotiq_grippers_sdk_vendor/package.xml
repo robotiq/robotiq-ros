@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>robotiq_grippers_sdk_vendor</name>
-  <version>1.3.0</version>
+  <version>1.4.0</version>
   <description>Builds the Robotiq grippers C++ SDK (github.com/robotiq/robotiq-sdk, grippers/) at a pinned version, for the ROS packages that use it.</description>
   <maintainer email="ros@robotiq.com">Robotiq</maintainer>
   <license>BSD-3-Clause</license>

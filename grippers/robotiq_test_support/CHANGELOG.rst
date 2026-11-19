@@ -2,6 +2,6 @@
 Changelog for package robotiq_test_support
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.4.0 (2026-11-19)
+------------------
 * First release.
