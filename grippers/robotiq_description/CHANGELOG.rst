@@ -20,6 +20,7 @@ Changelog for package robotiq_description
   * Deprecated, and removed in the next major release: the ``sim_ignition``, ``sim_isaac`` and ``fake_sensor_commands`` arguments, ``urdf/robotiq_gripper.ros2_control.xacro``, the ``connected_to`` argument of ``ur_to_robotiq``, and the 2F-85 meshes directly under ``meshes/visual`` and ``meshes/collision``.
 * Changes for users of the 2F-140 description of 1.1 to 1.3:
 
+  * The 2F-140 is now validated on a real gripper. The 1.3 description modelled the previous 2F-140, and its closed position put the fingers 9 to 15 mm away from the real ones.
   * The description is rebuilt from Robotiq's Isaac Sim asset of the current 2F-140: new meshes, and link frames at each link's pivot, parallel to ``robotiq_140_base_link``. Link and joint names are unchanged. It hands the driver ``gripper_profile`` ``2f_140``.
   * ``gripper_closed_position`` is 0.77 instead of 0.695, fitted to a real 2F-140, and ``finger_joint`` reaches 0.785 instead of 0.7. A goal of 0.695 no longer closes the gripper fully.
   * The pad frames, ``left_inner_finger_pad`` and ``right_inner_finger_pad``, keep their orientation and move to the centre of the pad's contact face.
