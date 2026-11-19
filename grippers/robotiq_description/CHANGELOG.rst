@@ -5,6 +5,11 @@ Changelog for package robotiq_description
 Forthcoming
 -----------
 * First release on the ROS build farm. Earlier releases: https://github.com/robotiq/robotiq-ros/releases
+* Hand-E and Hand-E C10 descriptions, selected with ``gripper_model`` ``hand_e`` and ``hand_e_c10``.
+* ``slave_address`` launch and macro argument, default 9, for a gripper at a non-default Modbus address.
+* ``gripper_goal_tolerance`` launch argument, defaulting per ``gripper_model``.
+* The ``reactivate_gripper`` GPIO carries the macro's ``prefix``, so several grippers can share one description.
+* Every hardware plugin, mock and simulators included, gets ``gripper_closed_position`` and ``gripper_profile``, and the launch spawns ``robotiq_normalized_position_broadcaster``.
 * The descriptions no longer set ``gripper_max_speed``: the driver takes the speed range from ``gripper_profile``. Passing it to a macro still overrides the profile's top speed.
 * ``robotiq_gripper_ros2_control`` accepts PickNik ``main``'s ``sim_isaac``, ``isaac_joint_commands`` and ``isaac_joint_states`` arguments on the 2F-85 and the 2F-140, deprecated like in the ``robotiq_gripper`` macros.
 * Changes for users of PickNik's 0.0.1 release:
