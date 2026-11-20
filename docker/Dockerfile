@@ -70,7 +70,6 @@ ENV TZ=Etc/UTC
 # GUI tools (rviz2/rqt/joint-state-publisher-gui/terminator) are optional; drop
 # them for headless robots with --build-arg WITH_GUI=false.
 RUN apt-get update && apt-get install -y \
-        libserialport0 \
         ros-${ROS_DISTRO}-ros2-control \
         ros-${ROS_DISTRO}-ros2-controllers \
         ros-${ROS_DISTRO}-controller-manager \

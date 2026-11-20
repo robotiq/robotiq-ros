@@ -55,7 +55,7 @@
 #include "robotiq_tsf/srv/tactile_sensors.hpp"
 
 // Defined by the tactile sensors SDK; forward-declared here so
-// this header doesn't pull in libserialport. The node's out-of-line destructor
+// this header doesn't need the SDK's header. The node's out-of-line destructor
 // keeps the unique_ptr happy with the incomplete type.
 class RobotiqTactileSensor;
 

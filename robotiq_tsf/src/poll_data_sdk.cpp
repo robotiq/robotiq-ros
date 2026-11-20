@@ -189,14 +189,11 @@ bool PollDataSdkNode::startSensor()
 
    RCLCPP_INFO(get_logger(), "Opening tactile sensor at %s via SDK", device.c_str());
 
-   // The SDK (libserialport) opens the port in raw mode. That is load-bearing,
-   // not incidental: the sensor stream is binary, and a freshly re-enumerated
-   // CDC-ACM tty defaults to cooked line discipline (ICRNL rewrites 0x0D, IXON
-   // eats 0x11/0x13), which mangles the stream and makes the taxels read as
-   // rail-to-rail garbage ("flashing red"). This is exactly the bug the old
-   // hand-rolled poll_data_node hit (it never forced raw mode); the SDK path is
-   // immune only because libserialport sets raw mode for us. If this ever moves
-   // off libserialport, the replacement MUST put the tty in raw mode.
+   // The SDK opens the port in raw mode. That is load-bearing, not incidental:
+   // the sensor stream is binary, and a freshly re-enumerated CDC-ACM tty
+   // defaults to cooked line discipline (ICRNL rewrites 0x0D, IXON eats
+   // 0x11/0x13), which mangles the stream and makes the taxels read as
+   // rail-to-rail garbage ("flashing red").
    sensor_ = std::make_unique<RobotiqTactileSensor>(device.c_str(), &onSensorData, kSamplePeriodMs);
    if(!sensor_->isConnected())
    {

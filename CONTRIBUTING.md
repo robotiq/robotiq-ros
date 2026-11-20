@@ -42,7 +42,7 @@ full-toolchain `builder` image — see [Docker](README.md#docker)): clone into
 `src/` and follow the **Existing ROS 2 workspace** steps in the
 [README](README.md#migrating-from-pickniks-ros2_robotiq_gripper), skipping the
 `rm -rf` lines unless you are actually migrating off the PickNik packages.
-`rosdep install` resolves every dependency, `libserialport` included.
+`rosdep install` resolves every dependency.
 
 ## Formatting and linting
 

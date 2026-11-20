@@ -30,13 +30,11 @@ if(NOT TARGET robotiq_tactile_sdk_vendor::RobotiqTactileSensor)
   set(_tactile_sdk_prefix "${robotiq_tactile_sdk_vendor_DIR}/../../../opt/robotiq_tactile_sdk_vendor")
 
   find_package(Threads REQUIRED)
-  find_library(_tactile_sdk_serialport_library NAMES serialport libserialport REQUIRED)
-  find_path(_tactile_sdk_serialport_include_dir libserialport.h REQUIRED)
 
   add_library(robotiq_tactile_sdk_vendor::RobotiqTactileSensor STATIC IMPORTED)
   set_target_properties(robotiq_tactile_sdk_vendor::RobotiqTactileSensor PROPERTIES
     IMPORTED_LOCATION "${_tactile_sdk_prefix}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}RobotiqTactileSensor${CMAKE_STATIC_LIBRARY_SUFFIX}"
-    INTERFACE_INCLUDE_DIRECTORIES "${_tactile_sdk_prefix}/include/RobotiqTactileSensor;${_tactile_sdk_serialport_include_dir}"
-    INTERFACE_LINK_LIBRARIES "${_tactile_sdk_serialport_library};Threads::Threads"
+    INTERFACE_INCLUDE_DIRECTORIES "${_tactile_sdk_prefix}/include/RobotiqTactileSensor"
+    INTERFACE_LINK_LIBRARIES Threads::Threads
   )
 endif()
