@@ -2,9 +2,14 @@
 Changelog for package robotiq_description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.4.0 (2026-11-19)
+------------------
 * First release on the ROS build farm. Earlier releases: https://github.com/robotiq/robotiq-ros/releases
+* Hand-E and Hand-E C10 descriptions, selected with ``gripper_model`` ``hand_e`` and ``hand_e_c10``.
+* ``slave_address`` launch and macro argument, default 9, for a gripper at a non-default Modbus address.
+* ``gripper_goal_tolerance`` launch argument, defaulting per ``gripper_model``.
+* The ``reactivate_gripper`` GPIO carries the macro's ``prefix``, so several grippers can share one description.
+* Every hardware plugin, mock and simulators included, gets ``gripper_closed_position`` and ``gripper_profile``, and the launch spawns ``robotiq_normalized_position_broadcaster``.
 * The descriptions no longer set ``gripper_max_speed``: the driver takes the speed range from ``gripper_profile``. Passing it to a macro still overrides the profile's top speed.
 * ``robotiq_gripper_ros2_control`` accepts PickNik ``main``'s ``sim_isaac``, ``isaac_joint_commands`` and ``isaac_joint_states`` arguments on the 2F-85 and the 2F-140, deprecated like in the ``robotiq_gripper`` macros.
 * Changes for users of PickNik's 0.0.1 release:
@@ -15,6 +20,7 @@ Forthcoming
   * Deprecated, and removed in the next major release: the ``sim_ignition``, ``sim_isaac`` and ``fake_sensor_commands`` arguments, ``urdf/robotiq_gripper.ros2_control.xacro``, the ``connected_to`` argument of ``ur_to_robotiq``, and the 2F-85 meshes directly under ``meshes/visual`` and ``meshes/collision``.
 * Changes for users of the 2F-140 description of 1.1 to 1.3:
 
+  * The 2F-140 is now validated on a real gripper. The 1.3 description modelled the previous 2F-140, and its closed position put the fingers 9 to 15 mm away from the real ones.
   * The description is rebuilt from Robotiq's Isaac Sim asset of the current 2F-140: new meshes, and link frames at each link's pivot, parallel to ``robotiq_140_base_link``. Link and joint names are unchanged. It hands the driver ``gripper_profile`` ``2f_140``.
   * ``gripper_closed_position`` is 0.77 instead of 0.695, fitted to a real 2F-140, and ``finger_joint`` reaches 0.785 instead of 0.7. A goal of 0.695 no longer closes the gripper fully.
   * The pad frames, ``left_inner_finger_pad`` and ``right_inner_finger_pad``, keep their orientation and move to the centre of the pad's contact face.
