@@ -79,9 +79,9 @@ case "${PRODUCT}" in
         if [[ -n "${d}" ]]; then
           real="$(readlink -f "${d}")"
           log sensor "  found sensor device: ${d} -> ${real}"
-          # Map at the REAL tty name (not the udev symlink): libserialport (SDK
-          # poller) resolves ports via /sys/class/tty/<name>, which only knows
-          # the real device. The SDK node then autodetects it by USB descriptor.
+          # Map at the REAL tty name (not the udev symlink): the SDK node
+          # autodetects the sensor by USB descriptor under /sys/class/tty/<name>,
+          # which only knows the real device.
           DEV+=(--device="${real}")
           found=1
         fi

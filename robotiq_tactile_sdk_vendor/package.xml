@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>robotiq_tactile_sdk_vendor</name>
-  <version>1.4.0</version>
+  <version>1.4.1</version>
   <description>Builds the Robotiq tactile sensors C++ SDK (github.com/robotiq/robotiq-sdk, tsf/) at a pinned release, for the ROS packages that use it.</description>
   <maintainer email="ros@robotiq.com">Robotiq</maintainer>
   <license>BSD-3-Clause</license>
@@ -12,9 +12,6 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_vendor_package</buildtool_depend>
-
-  <!-- The SDK's serial transport; its header includes libserialport.h. -->
-  <depend>libserialport-dev</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
