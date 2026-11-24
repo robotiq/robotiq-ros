@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>robotiq_test_support</name>
-  <version>1.4.0</version>
+  <version>1.4.1</version>
   <description>Shared gtest main for the test suites that create nodes.</description>
   <maintainer email="ros@robotiq.com">Robotiq</maintainer>
   <license>BSD-3-Clause</license>
